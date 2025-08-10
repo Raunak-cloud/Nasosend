@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import Image from "next/image";
 import {
   MessageCircle,
@@ -27,30 +33,33 @@ const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Mock support agents
-  const supportAgents = [
-    {
-      id: 1,
-      name: "Sarah Wilson",
-      avatar:
-        "https://ui-avatars.com/api/?name=Sarah+Wilson&background=3b82f6&color=fff",
-      status: "online",
-    },
-    {
-      id: 2,
-      name: "David Chen",
-      avatar:
-        "https://ui-avatars.com/api/?name=David+Chen&background=10b981&color=fff",
-      status: "online",
-    },
-    {
-      id: 3,
-      name: "Maya Patel",
-      avatar:
-        "https://ui-avatars.com/api/?name=Maya+Patel&background=8b5cf6&color=fff",
-      status: "online",
-    },
-  ];
+  // Memoized support agents to prevent recreation on every render
+  const supportAgents = useMemo(
+    () => [
+      {
+        id: 1,
+        name: "Sarah Wilson",
+        avatar:
+          "https://ui-avatars.com/api/?name=Sarah+Wilson&background=3b82f6&color=fff",
+        status: "online",
+      },
+      {
+        id: 2,
+        name: "David Chen",
+        avatar:
+          "https://ui-avatars.com/api/?name=David+Chen&background=10b981&color=fff",
+        status: "online",
+      },
+      {
+        id: 3,
+        name: "Maya Patel",
+        avatar:
+          "https://ui-avatars.com/api/?name=Maya+Patel&background=8b5cf6&color=fff",
+        status: "online",
+      },
+    ],
+    []
+  );
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -87,7 +96,7 @@ const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
       };
       setMessages([welcomeMessage]);
     }, 2000);
-  }, [supportAgents]); // Dependencies for useCallback
+  }, [supportAgents]); // Now supportAgents is stable
 
   // Initialize chat when opened
   useEffect(() => {

@@ -76,10 +76,22 @@ function TravelerDashboard() {
     }
   }, [user?.uid]);
 
+  // If you have these functions elsewhere, add them here with useCallback
+  // const fetchAvailableTrips = useCallback(async () => {
+  //   // Your implementation here
+  // }, [/* dependencies */]);
+
+  // const fetchMyShipments = useCallback(async () => {
+  //   // Your implementation here
+  // }, [/* dependencies */]);
+
   useEffect(() => {
     fetchTrips();
     fetchRequests();
-  }, [fetchTrips, fetchRequests]);
+    // Add other fetch functions here if they exist:
+    // fetchAvailableTrips();
+    // fetchMyShipments();
+  }, [fetchTrips, fetchRequests]); // Include all fetch functions in dependencies
 
   const handleCreateTrip = async () => {
     try {
@@ -99,8 +111,8 @@ function TravelerDashboard() {
       setTripData({
         departureDate: "",
         arrivalDate: "",
-        departureCity: "Sydney",
         arrivalCity: "Kathmandu",
+        departureCity: "Sydney",
         availableWeight: "",
         pricePerKg: "",
         allowedItems: [],
@@ -184,7 +196,7 @@ function TravelerDashboard() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9 3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
                   />
                 </svg>
               </div>
