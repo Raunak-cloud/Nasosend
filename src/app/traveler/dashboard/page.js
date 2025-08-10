@@ -32,9 +32,11 @@ function TravelerDashboard() {
     arrivalCity: "Kathmandu",
     availableWeight: "",
     pricePerKg: "",
+    flightNumber: "",
+    airline: "",
+    flightItinerary: null,
+    eTicket: null,
     allowedItems: [],
-    prohibitedItems: [],
-    notes: "",
   });
 
   // Create reusable fetch functions with useCallback
@@ -76,27 +78,73 @@ function TravelerDashboard() {
     }
   }, [user?.uid]);
 
-  // If you have these functions elsewhere, add them here with useCallback
-  // const fetchAvailableTrips = useCallback(async () => {
-  //   // Your implementation here
-  // }, [/* dependencies */]);
+  // Legal items that can be carried from Australia to Nepal
+  const legalItems = [
+    "Clothing and textiles",
+    "Baby formula and food",
+    "Vitamins and supplements",
+    "Books and educational materials",
+    "Small electronics (phone accessories, chargers)",
+    "Personal care items (cosmetics, toiletries)",
+    "Chocolates and snacks",
+    "Spices and tea",
+    "Toys and games",
+    "Stationery and office supplies",
+    "Traditional Australian souvenirs",
+    "Handicrafts and small gifts",
+  ];
 
-  // const fetchMyShipments = useCallback(async () => {
-  //   // Your implementation here
-  // }, [/* dependencies */]);
+  const handleItemToggle = (item) => {
+    setTripData((prev) => ({
+      ...prev,
+      allowedItems: prev.allowedItems.includes(item)
+        ? prev.allowedItems.filter((i) => i !== item)
+        : [...prev.allowedItems, item],
+    }));
+  };
+
+  const handleFileUpload = (field, file) => {
+    if (file && file.type === "application/pdf") {
+      setTripData((prev) => ({
+        ...prev,
+        [field]: file,
+      }));
+    } else {
+      alert("Please upload a PDF file");
+    }
+  };
 
   useEffect(() => {
     fetchTrips();
     fetchRequests();
-    // Add other fetch functions here if they exist:
-    // fetchAvailableTrips();
-    // fetchMyShipments();
-  }, [fetchTrips, fetchRequests]); // Include all fetch functions in dependencies
+  }, [fetchTrips, fetchRequests]);
 
   const handleCreateTrip = async () => {
+    // Validation for mandatory fields
+    if (
+      !tripData.flightNumber ||
+      !tripData.airline ||
+      !tripData.flightItinerary ||
+      !tripData.eTicket
+    ) {
+      alert(
+        "Please fill in all mandatory flight details and upload required documents."
+      );
+      return;
+    }
+
+    if (tripData.allowedItems.length === 0) {
+      alert("Please select at least one type of item you can carry.");
+      return;
+    }
+
     try {
-      await addDoc(collection(db, "trips"), {
+      // In a real implementation, you'd upload files to Firebase Storage first
+      // For now, we'll just store the file names
+      const tripPayload = {
         ...tripData,
+        flightItinerary: tripData.flightItinerary.name,
+        eTicket: tripData.eTicket.name,
         travelerId: user.uid,
         travelerName: userProfile.verification?.fullName || user.phoneNumber,
         travelerPhone: user.phoneNumber,
@@ -104,20 +152,24 @@ function TravelerDashboard() {
         status: "active",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      await addDoc(collection(db, "trips"), tripPayload);
 
       setShowCreateTrip(false);
       fetchTrips();
       setTripData({
         departureDate: "",
         arrivalDate: "",
-        arrivalCity: "Kathmandu",
         departureCity: "Sydney",
+        arrivalCity: "Kathmandu",
         availableWeight: "",
         pricePerKg: "",
+        flightNumber: "",
+        airline: "",
+        flightItinerary: null,
+        eTicket: null,
         allowedItems: [],
-        prohibitedItems: [],
-        notes: "",
       });
     } catch (error) {
       console.error("Error creating trip:", error);
@@ -196,7 +248,7 @@ function TravelerDashboard() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9 3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
                   />
                 </svg>
               </div>
@@ -299,16 +351,114 @@ function TravelerDashboard() {
         {/* Create Trip Modal */}
         {showCreateTrip && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
               <h3 className="text-2xl font-bold text-gray-900 mb-6">
                 Create New Trip
               </h3>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-6">
+                {/* Flight Information Section */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-2 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      />
+                    </svg>
+                    Flight Information (Mandatory)
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Flight Number *
+                      </label>
+                      <input
+                        type="text"
+                        value={tripData.flightNumber}
+                        onChange={(e) =>
+                          setTripData({
+                            ...tripData,
+                            flightNumber: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., QF41, SQ211"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Airline *
+                      </label>
+                      <input
+                        type="text"
+                        value={tripData.airline}
+                        onChange={(e) =>
+                          setTripData({ ...tripData, airline: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., Qantas, Singapore Airlines"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Flight Itinerary (PDF) *
+                      </label>
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) =>
+                          handleFileUpload("flightItinerary", e.target.files[0])
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      {tripData.flightItinerary && (
+                        <p className="text-sm text-green-600 mt-1">
+                          ✓ {tripData.flightItinerary.name}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        E-Ticket (PDF) *
+                      </label>
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) =>
+                          handleFileUpload("eTicket", e.target.files[0])
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      {tripData.eTicket && (
+                        <p className="text-sm text-green-600 mt-1">
+                          ✓ {tripData.eTicket.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Travel Dates */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Departure Date
+                      Departure Date *
                     </label>
                     <input
                       type="date"
@@ -320,11 +470,12 @@ function TravelerDashboard() {
                         })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Arrival Date
+                      Arrival Date *
                     </label>
                     <input
                       type="date"
@@ -336,14 +487,16 @@ function TravelerDashboard() {
                         })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Baggage Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Available Weight (kg)
+                      Available Weight (kg) *
                     </label>
                     <input
                       type="number"
@@ -356,11 +509,14 @@ function TravelerDashboard() {
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="e.g., 20"
+                      min="1"
+                      max="50"
+                      required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Price per kg (AUD)
+                      Price per kg (AUD) *
                     </label>
                     <input
                       type="number"
@@ -370,36 +526,53 @@ function TravelerDashboard() {
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="e.g., 25"
+                      min="1"
+                      required
                     />
                   </div>
                 </div>
 
+                {/* Legal Items Checklist */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notes (Optional)
+                  <label className="block text-sm font-medium text-gray-700 mb-4">
+                    Items You Can Carry (Select all that apply) *
                   </label>
-                  <textarea
-                    value={tripData.notes}
-                    onChange={(e) =>
-                      setTripData({ ...tripData, notes: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows="3"
-                    placeholder="Any special instructions or requirements..."
-                  />
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-64 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {legalItems.map((item) => (
+                        <label
+                          key={item}
+                          className="flex items-center space-x-3 cursor-pointer hover:bg-white p-2 rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={tripData.allowedItems.includes(item)}
+                            onChange={() => handleItemToggle(item)}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{item}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    * Please only select items you are willing and legally
+                    allowed to carry. Large electronics, liquids over 100ml, and
+                    valuable items are generally not recommended.
+                  </p>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-4 mt-6">
+              <div className="flex justify-end gap-4 mt-8 pt-6 border-t">
                 <button
                   onClick={() => setShowCreateTrip(false)}
-                  className="px-6 py-2 text-gray-600 hover:text-gray-900"
+                  className="px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCreateTrip}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Create Trip
                 </button>
@@ -428,6 +601,9 @@ function TravelerDashboard() {
                             {trip.departureCity} → {trip.arrivalCity}
                           </h4>
                           <p className="text-sm text-gray-600 mt-1">
+                            Flight: {trip.flightNumber} ({trip.airline})
+                          </p>
+                          <p className="text-sm text-gray-600">
                             Departure:{" "}
                             {new Date(trip.departureDate).toLocaleDateString()}
                           </p>
@@ -435,6 +611,15 @@ function TravelerDashboard() {
                             Available: {trip.availableWeight}kg at $
                             {trip.pricePerKg}/kg
                           </p>
+                          {trip.allowedItems &&
+                            trip.allowedItems.length > 0 && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                Items:{" "}
+                                {trip.allowedItems.slice(0, 2).join(", ")}
+                                {trip.allowedItems.length > 2 &&
+                                  ` +${trip.allowedItems.length - 2} more`}
+                              </p>
+                            )}
                         </div>
                         <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
                           Active

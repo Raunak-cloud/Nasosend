@@ -1,7 +1,7 @@
 // app/sender/dashboard/page.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
@@ -20,7 +20,7 @@ export default function SenderDashboardPage() {
   const router = useRouter();
   const { user, userProfile, loading } = useAuth();
   const [availableTrips, setAvailableTrips] = useState([]);
-  const [myShipments, setMyShipments] = useState([]);
+  const [myRequests, setMyRequests] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [activeTab, setActiveTab] = useState("available");
@@ -42,71 +42,13 @@ export default function SenderDashboardPage() {
     expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
   });
 
-  // Mock data for my shipments
-  const mockShipments = [
-    {
-      id: "s1",
-      tripId: "1",
-      travelerName: "Rajesh Sharma",
-      itemDescription: "Winter Clothes",
-      weight: 5,
-      status: "delivered",
-      totalCost: 150,
-      departureDate: "2024-01-10",
-      deliveryDate: "2024-01-12",
-      recipientName: "Ram Prasad",
-      recipientPhone: "+977-9841234567",
-      rating: 5,
-      trackingUpdates: [
-        {
-          date: "2024-01-10",
-          status: "Picked up from sender",
-          location: "Sydney",
-        },
-        { date: "2024-01-11", status: "In transit", location: "Doha" },
-        {
-          date: "2024-01-12",
-          status: "Delivered to recipient",
-          location: "Kathmandu",
-        },
-      ],
-    },
-    {
-      id: "s3",
-      tripId: "3",
-      travelerName: "Priya Singh",
-      itemDescription: "Documents",
-      weight: 0.5,
-      status: "pending",
-      totalCost: 17.5,
-      departureDate: "2024-02-20",
-      recipientName: "Hari Bahadur",
-      recipientPhone: "+977-9861234567",
-      trackingUpdates: [],
-    },
-  ];
-
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
 
-  useEffect(() => {
-    console.log("🚀 Sender Dashboard Effect Triggered:", {
-      hasUser: !!user,
-      userEmail: user?.email,
-      userUid: user?.uid,
-      timestamp: new Date().toISOString(),
-    });
-
-    if (user) {
-      fetchAvailableTrips();
-      fetchMyShipments();
-    }
-  }, [user]);
-
-  const fetchAvailableTrips = async () => {
+  const fetchAvailableTrips = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -147,32 +89,34 @@ export default function SenderDashboardPage() {
     } catch (error) {
       console.error("❌ Error fetching trips:", error);
     }
-  };
+  }, [user?.uid]);
 
-  const fetchMyShipments = async () => {
-    if (!user) return;
+  const fetchMyRequests = useCallback(async () => {
+    if (!user?.uid) return;
 
     try {
-      // For now, use mock data for shipments
-      // In future, this will fetch real shipment requests
-      setMyShipments(mockShipments);
-
-      // TODO: Implement real shipment fetching
-      // const q = query(
-      //   collection(db, "shipmentRequests"),
-      //   where("senderId", "==", user.uid),
-      //   orderBy("createdAt", "desc")
-      // );
-      // const querySnapshot = await getDocs(q);
-      // const shipmentsData = [];
-      // querySnapshot.forEach((doc) => {
-      //   shipmentsData.push({ id: doc.id, ...doc.data() });
-      // });
-      // setMyShipments(shipmentsData);
+      const q = query(
+        collection(db, "shipmentRequests"),
+        where("senderId", "==", user.uid),
+        orderBy("createdAt", "desc")
+      );
+      const querySnapshot = await getDocs(q);
+      const requestsData = [];
+      querySnapshot.forEach((doc) => {
+        requestsData.push({ id: doc.id, ...doc.data() });
+      });
+      setMyRequests(requestsData);
     } catch (error) {
-      console.error("Error fetching shipments:", error);
+      console.error("Error fetching requests:", error);
     }
-  };
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (user) {
+      fetchAvailableTrips();
+      fetchMyRequests();
+    }
+  }, [user, fetchAvailableTrips, fetchMyRequests]);
 
   // If still loading or no user, don't render anything (AuthWrapper handles loading)
   if (loading || !user) {
@@ -250,12 +194,12 @@ export default function SenderDashboardPage() {
       console.log("✅ Shipment request saved with ID:", docRef.id);
 
       // Add to local state for immediate UI update
-      const newShipment = {
+      const newRequest = {
         ...shipmentRequest,
         id: docRef.id,
         createdAt: new Date(),
       };
-      setMyShipments([newShipment, ...myShipments]);
+      setMyRequests([newRequest, ...myRequests]);
 
       // Decrease available tokens
       setTokenInfo((prev) => ({
@@ -279,7 +223,7 @@ export default function SenderDashboardPage() {
       alert("Request sent successfully! The traveler will contact you soon.");
 
       // Refresh data
-      await fetchMyShipments();
+      await fetchMyRequests();
     } catch (error) {
       console.error("❌ Error sending request:", error);
       alert("Failed to send request. Please try again.");
@@ -356,7 +300,7 @@ export default function SenderDashboardPage() {
           </div>
         )}
 
-        {/* Compact Token Information Banner */}
+        {/* Token Information Banner */}
         <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 text-white shadow-lg">
           <div className="absolute inset-0 bg-black opacity-8"></div>
           <div className="absolute top-0 right-0 w-20 h-20 bg-white opacity-8 rounded-full -mr-10 -mt-10"></div>
@@ -426,7 +370,7 @@ export default function SenderDashboardPage() {
           }}
         />
 
-        {/* Compact Stats Cards */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           <div className="bg-white rounded-lg sm:rounded-xl shadow-md border border-gray-100 p-3 sm:p-4 lg:p-6 hover:shadow-lg transition-all duration-300">
             <div className="flex items-center">
@@ -478,13 +422,13 @@ export default function SenderDashboardPage() {
               </div>
               <div className="ml-3 sm:ml-4 lg:ml-6 min-w-0 flex-1">
                 <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">
-                  Pending Shipments
+                  Pending Requests
                 </p>
                 <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-                  {myShipments.filter((s) => s.status === "pending").length}
+                  {myRequests.filter((r) => r.status === "pending").length}
                 </p>
                 <p className="text-xs text-amber-600 font-medium">
-                  Awaiting pickup
+                  Awaiting response
                 </p>
               </div>
             </div>
@@ -509,13 +453,13 @@ export default function SenderDashboardPage() {
               </div>
               <div className="ml-3 sm:ml-4 lg:ml-6 min-w-0 flex-1">
                 <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">
-                  Delivered
+                  Accepted Requests
                 </p>
                 <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-                  {myShipments.filter((s) => s.status === "delivered").length}
+                  {myRequests.filter((r) => r.status === "accepted").length}
                 </p>
                 <p className="text-xs text-emerald-600 font-medium">
-                  Successfully completed
+                  Ready for delivery
                 </p>
               </div>
             </div>
@@ -524,7 +468,7 @@ export default function SenderDashboardPage() {
 
         {/* Main Content */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-          {/* Compact Tabs */}
+          {/* Tabs */}
           <div className="border-b border-gray-200 bg-gray-50">
             <div className="flex">
               <button
@@ -551,12 +495,15 @@ export default function SenderDashboardPage() {
                   </svg>
                   <span className="hidden sm:inline">Available Travelers</span>
                   <span className="sm:hidden">Travelers</span>
+                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    {availableTrips.length}
+                  </span>
                 </span>
               </button>
               <button
-                onClick={() => setActiveTab("shipments")}
+                onClick={() => setActiveTab("requests")}
                 className={`relative px-4 sm:px-6 lg:px-8 py-3 sm:py-4 font-medium sm:font-semibold transition-all duration-200 text-sm sm:text-base ${
-                  activeTab === "shipments"
+                  activeTab === "requests"
                     ? "text-blue-600 bg-white border-b-2 border-blue-600"
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
@@ -572,11 +519,14 @@ export default function SenderDashboardPage() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                      d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                     />
                   </svg>
-                  <span className="hidden sm:inline">My Shipments</span>
-                  <span className="sm:hidden">Shipments</span>
+                  <span className="hidden sm:inline">My Requests</span>
+                  <span className="sm:hidden">Requests</span>
+                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    {myRequests.length}
+                  </span>
                 </span>
               </button>
             </div>
@@ -658,24 +608,11 @@ export default function SenderDashboardPage() {
                               )}
                             </div>
                             <div className="flex items-center text-xs sm:text-sm text-gray-600 mt-1">
-                              {trip.rating > 0 ? (
-                                <>
-                                  <div className="flex items-center">
-                                    <span className="text-yellow-400 text-sm sm:text-base lg:text-lg">
-                                      ★
-                                    </span>
-                                    <span className="ml-1 font-medium">
-                                      {trip.rating}
-                                    </span>
-                                  </div>
-                                  <span className="mx-2 text-gray-400">•</span>
-                                  <span>{trip.completedTrips} trips</span>
-                                </>
-                              ) : (
-                                <span className="px-2 py-1 bg-gray-100 rounded-full text-xs font-medium">
-                                  New traveler
-                                </span>
-                              )}
+                              <span className="px-2 py-1 bg-gray-100 rounded-full text-xs font-medium">
+                                {trip.verified
+                                  ? "Verified traveler"
+                                  : "New traveler"}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -766,12 +703,29 @@ export default function SenderDashboardPage() {
                           </div>
                         ) : null}
 
-                        {/* Notes */}
-                        {trip.notes && (
+                        {/* Allowed Items */}
+                        {trip.allowedItems && trip.allowedItems.length > 0 && (
                           <div className="mb-4 sm:mb-6">
-                            <p className="text-xs sm:text-sm text-gray-600 italic leading-relaxed line-clamp-2">
-                              "{trip.notes}"
+                            <p className="text-xs sm:text-sm text-gray-600 mb-2 font-medium">
+                              Can carry:
                             </p>
+                            <div className="flex flex-wrap gap-1">
+                              {trip.allowedItems
+                                .slice(0, 3)
+                                .map((item, index) => (
+                                  <span
+                                    key={index}
+                                    className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md"
+                                  >
+                                    {item}
+                                  </span>
+                                ))}
+                              {trip.allowedItems.length > 3 && (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
+                                  +{trip.allowedItems.length - 3} more
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
 
@@ -846,32 +800,32 @@ export default function SenderDashboardPage() {
               <div>
                 <div className="mb-4 sm:mb-6">
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-1 sm:mb-2">
-                    Your Shipment History
+                    Your Shipment Requests
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    Track and manage your sent packages
+                    Track your requests and manage communications with travelers
                   </p>
                 </div>
 
                 <div className="space-y-4 sm:space-y-6">
-                  {myShipments.map((shipment) => (
+                  {myRequests.map((request) => (
                     <div
-                      key={shipment.id}
+                      key={request.id}
                       className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-md transition-all duration-200"
                     >
                       <div className="flex items-start justify-between mb-3 sm:mb-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-3">
                             <h4 className="font-bold text-gray-900 text-sm sm:text-base lg:text-lg">
-                              {shipment.itemDescription}
+                              {request.itemDescription}
                             </h4>
                             <span
                               className={`px-2.5 py-1 rounded-full text-xs font-medium w-fit ${getStatusBadge(
-                                shipment.status
+                                request.status
                               )}`}
                             >
-                              {shipment.status.charAt(0).toUpperCase() +
-                                shipment.status.slice(1)}
+                              {request.status.charAt(0).toUpperCase() +
+                                request.status.slice(1)}
                             </span>
                           </div>
 
@@ -880,18 +834,16 @@ export default function SenderDashboardPage() {
                               <span className="block text-xs text-gray-500 font-medium mb-1">
                                 Traveler
                               </span>
-                              <div className="flex items-center justify-center">
-                                <span className="text-xs sm:text-sm font-bold text-gray-900 truncate flex items-center">
-                                  {shipment.travelerName}
-                                </span>
-                              </div>
+                              <span className="text-xs sm:text-sm font-bold text-gray-900 truncate">
+                                {request.travelerName}
+                              </span>
                             </div>
                             <div className="text-center p-2 sm:p-3 bg-gray-50 rounded-lg">
                               <span className="block text-xs text-gray-500 font-medium mb-1">
                                 Weight
                               </span>
                               <span className="text-xs sm:text-sm font-bold text-gray-900">
-                                {shipment.weight}kg
+                                {request.weight}kg
                               </span>
                             </div>
                             <div className="text-center p-2 sm:p-3 bg-gray-50 rounded-lg">
@@ -899,98 +851,41 @@ export default function SenderDashboardPage() {
                                 Cost
                               </span>
                               <span className="text-xs sm:text-sm font-bold text-emerald-600">
-                                ${shipment.totalCost}
+                                ${request.totalCost}
                               </span>
                             </div>
                             <div className="text-center p-2 sm:p-3 bg-gray-50 rounded-lg">
                               <span className="block text-xs text-gray-500 font-medium mb-1">
-                                Departure
+                                Flight
                               </span>
                               <span className="text-xs sm:text-sm font-bold text-gray-900">
-                                {new Date(
-                                  shipment.departureDate
-                                ).toLocaleDateString("en-AU", {
-                                  month: "short",
-                                  day: "numeric",
-                                })}
+                                {request.flightNumber}
                               </span>
                             </div>
                           </div>
 
-                          {/* Tracking Updates */}
-                          {shipment.trackingUpdates &&
-                            shipment.trackingUpdates.length > 0 && (
-                              <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg sm:rounded-xl border border-blue-200">
-                                <h5 className="text-xs sm:text-sm font-bold text-blue-900 mb-2 sm:mb-3 flex items-center">
-                                  <svg
-                                    className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                                    />
-                                  </svg>
-                                  Tracking Updates
-                                </h5>
-                                <div className="space-y-2 sm:space-y-3">
-                                  {shipment.trackingUpdates.map(
-                                    (update, index) => (
-                                      <div
-                                        key={index}
-                                        className="flex items-start"
-                                      >
-                                        <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-600 rounded-full mt-1.5 mr-3 sm:mr-4 flex-shrink-0"></div>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-xs sm:text-sm font-medium text-gray-900">
-                                            {update.status}
-                                          </p>
-                                          <p className="text-xs text-gray-600 mt-1">
-                                            {update.date} • {update.location}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    )
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                          {/* Rating for delivered items */}
-                          {shipment.status === "delivered" &&
-                            shipment.rating && (
-                              <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-yellow-50 rounded-lg sm:rounded-xl border border-yellow-200">
-                                <div className="flex items-center">
-                                  <span className="text-xs sm:text-sm font-medium text-yellow-800 mr-2 sm:mr-3">
-                                    Your rating:
-                                  </span>
-                                  <div className="flex">
-                                    {[...Array(5)].map((_, i) => (
-                                      <span
-                                        key={i}
-                                        className={`text-base sm:text-lg lg:text-xl ${
-                                          i < shipment.rating
-                                            ? "text-yellow-400"
-                                            : "text-gray-300"
-                                        }`}
-                                      >
-                                        ★
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                          <div className="text-xs sm:text-sm text-gray-600">
+                            <p>
+                              <span className="font-medium">To:</span>{" "}
+                              {request.recipientName}
+                            </p>
+                            <p>
+                              <span className="font-medium">Address:</span>{" "}
+                              {request.recipientAddress}
+                            </p>
+                            <p>
+                              <span className="font-medium">Departure:</span>{" "}
+                              {new Date(
+                                request.departureDate
+                              ).toLocaleDateString("en-AU")}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   ))}
 
-                  {myShipments.length === 0 && (
+                  {myRequests.length === 0 && (
                     <div className="text-center py-12 sm:py-16">
                       <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gray-100 rounded-lg sm:rounded-xl lg:rounded-2xl mx-auto mb-4 sm:mb-6 flex items-center justify-center">
                         <svg
@@ -1003,12 +898,12 @@ export default function SenderDashboardPage() {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                           />
                         </svg>
                       </div>
                       <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
-                        No shipments yet
+                        No requests yet
                       </h3>
                       <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
                         Start sending packages with trusted travelers
@@ -1027,7 +922,7 @@ export default function SenderDashboardPage() {
           </div>
         </div>
 
-        {/* Compact Request Modal */}
+        {/* Request Modal */}
         {showRequestModal && selectedTrip && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 z-50 backdrop-blur-sm">
             <div className="bg-white rounded-lg sm:rounded-2xl max-w-2xl w-full max-h-[95vh] overflow-y-auto shadow-xl">
