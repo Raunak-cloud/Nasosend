@@ -656,12 +656,42 @@ export default function SenderDashboardPage() {
                                 })}
                               </p>
                             </div>
+                            <div className="text-center p-2 sm:p-3 bg-purple-50 rounded-lg sm:rounded-xl">
+                              <p className="text-xs text-purple-600 font-medium mb-1">
+                                Arrival
+                              </p>
+                              <p className="text-xs sm:text-sm font-bold text-purple-900">
+                                {new Date(trip.arrivalDate).toLocaleDateString(
+                                  "en-AU",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                  }
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-3">
                             <div className="text-center p-2 sm:p-3 bg-emerald-50 rounded-lg sm:rounded-xl">
                               <p className="text-xs text-emerald-600 font-medium mb-1">
                                 Capacity
                               </p>
                               <p className="text-xs sm:text-sm font-bold text-emerald-900">
                                 {trip.availableWeight}kg
+                              </p>
+                            </div>
+                            <div className="text-center p-2 sm:p-3 bg-amber-50 rounded-lg sm:rounded-xl">
+                              <p className="text-xs text-amber-600 font-medium mb-1">
+                                Duration
+                              </p>
+                              <p className="text-xs sm:text-sm font-bold text-amber-900">
+                                {Math.ceil(
+                                  (new Date(trip.arrivalDate) -
+                                    new Date(trip.departureDate)) /
+                                    (1000 * 60 * 60 * 24)
+                                )}{" "}
+                                days
                               </p>
                             </div>
                           </div>
@@ -982,7 +1012,9 @@ export default function SenderDashboardPage() {
                       <span className="mx-2">•</span>
                       {new Date(
                         selectedTrip.departureDate
-                      ).toLocaleDateString()}
+                      ).toLocaleDateString()}{" "}
+                      -{" "}
+                      {new Date(selectedTrip.arrivalDate).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex justify-between text-xs sm:text-sm">

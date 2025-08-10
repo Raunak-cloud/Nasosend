@@ -12,6 +12,9 @@ import {
   where,
   getDocs,
   addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
   serverTimestamp,
 } from "firebase/firestore";
 
@@ -23,6 +26,8 @@ function TravelerDashboard() {
   const router = useRouter();
   const { user, userProfile } = useAuth();
   const [showCreateTrip, setShowCreateTrip] = useState(false);
+  const [showEditTrip, setShowEditTrip] = useState(false);
+  const [editingTrip, setEditingTrip] = useState(null);
   const [trips, setTrips] = useState([]);
   const [requests, setRequests] = useState([]);
   const [tripData, setTripData] = useState({
@@ -118,6 +123,105 @@ function TravelerDashboard() {
     fetchTrips();
     fetchRequests();
   }, [fetchTrips, fetchRequests]);
+
+  const handleEditTrip = (trip) => {
+    setEditingTrip(trip);
+    setTripData({
+      departureDate: trip.departureDate,
+      arrivalDate: trip.arrivalDate,
+      departureCity: trip.departureCity,
+      arrivalCity: trip.arrivalCity,
+      availableWeight: trip.availableWeight.toString(),
+      pricePerKg: trip.pricePerKg.toString(),
+      flightNumber: trip.flightNumber,
+      airline: trip.airline,
+      flightItinerary: null, // Will need to be re-uploaded
+      eTicket: null, // Will need to be re-uploaded
+      allowedItems: trip.allowedItems || [],
+    });
+    setShowEditTrip(true);
+  };
+
+  const handleUpdateTrip = async () => {
+    if (!editingTrip) return;
+
+    // Validation for mandatory fields (skip file validation for edit)
+    if (!tripData.flightNumber || !tripData.airline) {
+      alert("Please fill in all mandatory flight details.");
+      return;
+    }
+
+    if (tripData.allowedItems.length === 0) {
+      alert("Please select at least one type of item you can carry.");
+      return;
+    }
+
+    try {
+      const tripPayload = {
+        departureDate: tripData.departureDate,
+        arrivalDate: tripData.arrivalDate,
+        departureCity: tripData.departureCity,
+        arrivalCity: tripData.arrivalCity,
+        availableWeight: parseFloat(tripData.availableWeight),
+        pricePerKg: parseFloat(tripData.pricePerKg),
+        flightNumber: tripData.flightNumber,
+        airline: tripData.airline,
+        allowedItems: tripData.allowedItems,
+        updatedAt: serverTimestamp(),
+      };
+
+      // Only update file fields if new files were uploaded
+      if (tripData.flightItinerary) {
+        tripPayload.flightItinerary = tripData.flightItinerary.name;
+      }
+      if (tripData.eTicket) {
+        tripPayload.eTicket = tripData.eTicket.name;
+      }
+
+      await updateDoc(doc(db, "trips", editingTrip.id), tripPayload);
+
+      setShowEditTrip(false);
+      setEditingTrip(null);
+      fetchTrips();
+      setTripData({
+        departureDate: "",
+        arrivalDate: "",
+        departureCity: "Sydney",
+        arrivalCity: "Kathmandu",
+        availableWeight: "",
+        pricePerKg: "",
+        flightNumber: "",
+        airline: "",
+        flightItinerary: null,
+        eTicket: null,
+        allowedItems: [],
+      });
+
+      alert("Trip updated successfully!");
+    } catch (error) {
+      console.error("Error updating trip:", error);
+      alert("Failed to update trip. Please try again.");
+    }
+  };
+
+  const handleDeleteTrip = async (tripId) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this trip? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, "trips", tripId));
+      fetchTrips();
+      alert("Trip deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting trip:", error);
+      alert("Failed to delete trip. Please try again.");
+    }
+  };
 
   const handleCreateTrip = async () => {
     // Validation for mandatory fields
@@ -348,12 +452,12 @@ function TravelerDashboard() {
           </button>
         </div>
 
-        {/* Create Trip Modal */}
-        {showCreateTrip && (
+        {/* Create/Edit Trip Modal */}
+        {(showCreateTrip || showEditTrip) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
               <h3 className="text-2xl font-bold text-gray-900 mb-6">
-                Create New Trip
+                {editingTrip ? "Edit Trip" : "Create New Trip"}
               </h3>
 
               <div className="space-y-6">
@@ -415,7 +519,8 @@ function TravelerDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Flight Itinerary (PDF) *
+                        Flight Itinerary (PDF){" "}
+                        {editingTrip ? "(Optional - only if updating)" : "*"}
                       </label>
                       <input
                         type="file"
@@ -424,17 +529,23 @@ function TravelerDashboard() {
                           handleFileUpload("flightItinerary", e.target.files[0])
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
+                        required={!editingTrip}
                       />
                       {tripData.flightItinerary && (
                         <p className="text-sm text-green-600 mt-1">
                           ✓ {tripData.flightItinerary.name}
                         </p>
                       )}
+                      {editingTrip && !tripData.flightItinerary && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Current file will be kept if not replaced
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        E-Ticket (PDF) *
+                        E-Ticket (PDF){" "}
+                        {editingTrip ? "(Optional - only if updating)" : "*"}
                       </label>
                       <input
                         type="file"
@@ -443,11 +554,16 @@ function TravelerDashboard() {
                           handleFileUpload("eTicket", e.target.files[0])
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
+                        required={!editingTrip}
                       />
                       {tripData.eTicket && (
                         <p className="text-sm text-green-600 mt-1">
                           ✓ {tripData.eTicket.name}
+                        </p>
+                      )}
+                      {editingTrip && !tripData.eTicket && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Current file will be kept if not replaced
                         </p>
                       )}
                     </div>
@@ -565,16 +681,33 @@ function TravelerDashboard() {
 
               <div className="flex justify-end gap-4 mt-8 pt-6 border-t">
                 <button
-                  onClick={() => setShowCreateTrip(false)}
+                  onClick={() => {
+                    setShowCreateTrip(false);
+                    setShowEditTrip(false);
+                    setEditingTrip(null);
+                    setTripData({
+                      departureDate: "",
+                      arrivalDate: "",
+                      departureCity: "Sydney",
+                      arrivalCity: "Kathmandu",
+                      availableWeight: "",
+                      pricePerKg: "",
+                      flightNumber: "",
+                      airline: "",
+                      flightItinerary: null,
+                      eTicket: null,
+                      allowedItems: [],
+                    });
+                  }}
                   className="px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleCreateTrip}
+                  onClick={editingTrip ? handleUpdateTrip : handleCreateTrip}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Create Trip
+                  {editingTrip ? "Update Trip" : "Create Trip"}
                 </button>
               </div>
             </div>
@@ -594,36 +727,92 @@ function TravelerDashboard() {
                 {trips
                   .filter((t) => t.status === "active")
                   .map((trip) => (
-                    <div key={trip.id} className="border rounded-lg p-4">
+                    <div
+                      key={trip.id}
+                      className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
                       <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold text-gray-900">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900 mb-2">
                             {trip.departureCity} → {trip.arrivalCity}
                           </h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Flight: {trip.flightNumber} ({trip.airline})
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Departure:{" "}
-                            {new Date(trip.departureDate).toLocaleDateString()}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Available: {trip.availableWeight}kg at $
-                            {trip.pricePerKg}/kg
-                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-600">
+                            <div>
+                              <span className="font-medium">Flight:</span>{" "}
+                              {trip.flightNumber} ({trip.airline})
+                            </div>
+                            <div>
+                              <span className="font-medium">Departure:</span>{" "}
+                              {new Date(
+                                trip.departureDate
+                              ).toLocaleDateString()}
+                            </div>
+                            <div>
+                              <span className="font-medium">Available:</span>{" "}
+                              {trip.availableWeight}kg
+                            </div>
+                            <div>
+                              <span className="font-medium">Price:</span> $
+                              {trip.pricePerKg}/kg
+                            </div>
+                          </div>
                           {trip.allowedItems &&
                             trip.allowedItems.length > 0 && (
-                              <p className="text-sm text-gray-600 mt-1">
-                                Items:{" "}
-                                {trip.allowedItems.slice(0, 2).join(", ")}
-                                {trip.allowedItems.length > 2 &&
-                                  ` +${trip.allowedItems.length - 2} more`}
-                              </p>
+                              <div className="mt-2">
+                                <span className="text-sm font-medium text-gray-600">
+                                  Items:{" "}
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  {trip.allowedItems.slice(0, 3).join(", ")}
+                                  {trip.allowedItems.length > 3 &&
+                                    ` +${trip.allowedItems.length - 3} more`}
+                                </span>
+                              </div>
                             )}
                         </div>
-                        <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                          Active
-                        </span>
+                        <div className="flex items-center gap-2 ml-4">
+                          <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                            Active
+                          </span>
+                          <button
+                            onClick={() => handleEditTrip(trip)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit trip"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTrip(trip.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete trip"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
