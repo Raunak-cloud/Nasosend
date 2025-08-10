@@ -1,5 +1,6 @@
 import React from "react";
-import { Mail, Phone, MapPin, Facebook, Instagram, a } from "lucide-react";
+import Image from "next/image";
+import { Mail, Phone, MapPin, Facebook, Instagram } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -9,10 +10,12 @@ const Footer = () => {
           {/* Company Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center mb-4">
-              <img
+              <Image
                 src="/nasosend.jpg"
                 alt="Nasosend Logo"
-                className="h-12 w-auto mr-3"
+                width={48}
+                height={48}
+                className="mr-3"
               />
               <h3 className="text-2xl font-bold">Nasosend</h3>
             </div>

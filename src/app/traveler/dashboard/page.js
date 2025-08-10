@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
@@ -37,12 +37,10 @@ function TravelerDashboard() {
     notes: "",
   });
 
-  useEffect(() => {
-    fetchTrips();
-    fetchRequests();
-  }, [user]);
+  // Create reusable fetch functions with useCallback
+  const fetchTrips = useCallback(async () => {
+    if (!user?.uid) return;
 
-  const fetchTrips = async () => {
     try {
       const q = query(
         collection(db, "trips"),
@@ -57,9 +55,11 @@ function TravelerDashboard() {
     } catch (error) {
       console.error("Error fetching trips:", error);
     }
-  };
+  }, [user?.uid]);
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
+    if (!user?.uid) return;
+
     try {
       const q = query(
         collection(db, "requests"),
@@ -74,7 +74,12 @@ function TravelerDashboard() {
     } catch (error) {
       console.error("Error fetching requests:", error);
     }
-  };
+  }, [user?.uid]);
+
+  useEffect(() => {
+    fetchTrips();
+    fetchRequests();
+  }, [fetchTrips, fetchRequests]);
 
   const handleCreateTrip = async () => {
     try {

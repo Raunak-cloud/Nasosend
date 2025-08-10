@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { Calendar, TrendingUp } from "lucide-react";
 
 const BlogLayout = ({ children }) => {
@@ -7,21 +8,25 @@ const BlogLayout = ({ children }) => {
       title: "Best Dashain Gifts to Send from Australia",
       views: 15,
       date: "2 days ago",
+      slug: "best-dashain-gifts-from-australia",
     },
     {
       title: "How to Pack Traditional Nepali Clothes",
       views: 23,
       date: "1 week ago",
+      slug: "how-to-pack-traditional-nepali-clothes",
     },
     {
       title: "Tihar Festival Shopping Guide",
       views: 18,
       date: "3 days ago",
+      slug: "tihar-festival-shopping-guide",
     },
     {
       title: "Electronics Worth Bringing to Nepal",
       views: 12,
       date: "5 days ago",
+      slug: "electronics-worth-bringing-to-nepal",
     },
   ];
 
@@ -51,12 +56,12 @@ const BlogLayout = ({ children }) => {
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-3">
           <nav className="flex items-center space-x-2 text-xs sm:text-sm font-medium">
-            <a
+            <Link
               href="/"
               className="text-blue-600 hover:text-blue-800 transition-colors"
             >
               Home
-            </a>
+            </Link>
             <span className="text-gray-400">→</span>
             <span className="text-gray-700 font-semibold">Blog</span>
           </nav>
@@ -84,9 +89,11 @@ const BlogLayout = ({ children }) => {
                     key={index}
                     className="group border-b border-gray-100 last:border-b-0 pb-3 last:pb-0"
                   >
-                    <h4 className="font-medium text-xs sm:text-sm mb-2 hover:text-blue-600 cursor-pointer transition-colors leading-relaxed group-hover:text-blue-600 line-clamp-2">
-                      {post.title}
-                    </h4>
+                    <Link href={`/blogs/${post.slug}`}>
+                      <h4 className="font-medium text-xs sm:text-sm mb-2 hover:text-blue-600 cursor-pointer transition-colors leading-relaxed group-hover:text-blue-600 line-clamp-2">
+                        {post.title}
+                      </h4>
+                    </Link>
                     <div className="flex flex-col sm:flex-row sm:items-center text-xs text-gray-500 space-y-1 sm:space-y-0 sm:space-x-3">
                       <span className="flex items-center bg-gray-50 px-2 py-1 rounded-md w-fit">
                         <Calendar className="w-2.5 h-2.5 mr-1 text-blue-500" />

@@ -1,6 +1,7 @@
 // /app/blogs/page.js
 "use client";
 import React, { useState } from "react";
+import Image from "next/image";
 import { Calendar, Clock, Tag, ArrowRight, Eye } from "lucide-react";
 import BlogLayout from "./BlogLayout";
 
@@ -53,10 +54,13 @@ const BlogPage = () => {
       <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-lg sm:rounded-xl shadow-md border border-blue-100 overflow-hidden mb-8 sm:mb-12 hover:shadow-lg transition-all duration-300">
         <div className="lg:flex">
           <div className="lg:w-1/2 relative">
-            <img
+            <Image
               src={featuredPost.image}
               alt={featuredPost.title}
+              width={800}
+              height={400}
               className="w-full h-48 sm:h-56 lg:h-full object-cover"
+              priority
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
           </div>
@@ -126,9 +130,11 @@ const BlogPage = () => {
             className="group bg-white rounded-lg sm:rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
           >
             <div className="relative overflow-hidden">
-              <img
+              <Image
                 src={post.image}
                 alt={post.title}
+                width={400}
+                height={250}
                 className="w-full h-40 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

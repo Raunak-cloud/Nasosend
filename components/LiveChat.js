@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
 import {
   MessageCircle,
   X,
@@ -60,14 +61,8 @@ const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
     scrollToBottom();
   }, [messages]);
 
-  // Initialize chat when opened
-  useEffect(() => {
-    if (isOpen && !chatSession && isAvailable) {
-      initializeChat();
-    }
-  }, [isOpen, isAvailable]);
-
-  const initializeChat = () => {
+  // Memoized initialize chat function
+  const initializeChat = useCallback(() => {
     setConnectionStatus("connecting");
 
     // Simulate connection delay
@@ -92,7 +87,14 @@ const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
       };
       setMessages([welcomeMessage]);
     }, 2000);
-  };
+  }, [supportAgents]); // Dependencies for useCallback
+
+  // Initialize chat when opened
+  useEffect(() => {
+    if (isOpen && !chatSession && isAvailable) {
+      initializeChat();
+    }
+  }, [isOpen, isAvailable, chatSession, initializeChat]);
 
   const sendMessage = () => {
     if (!currentMessage.trim() || connectionStatus !== "connected") return;
@@ -106,6 +108,7 @@ const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const messageToRespond = currentMessage.trim();
     setCurrentMessage("");
 
     // Simulate message delivery
@@ -124,7 +127,7 @@ const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
 
     setTimeout(() => {
       setIsTyping(false);
-      const agentResponse = generateAgentResponse(currentMessage);
+      const agentResponse = generateAgentResponse(messageToRespond);
       const responseMessage = {
         id: Date.now() + 1,
         text: agentResponse,
@@ -205,10 +208,12 @@ const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
           <div className="flex items-center space-x-3">
             <div className="relative">
               {supportAgent ? (
-                <img
+                <Image
                   src={supportAgent.avatar}
                   alt={supportAgent.name}
-                  className="w-8 h-8 rounded-full"
+                  width={32}
+                  height={32}
+                  className="rounded-full"
                 />
               ) : (
                 <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
@@ -309,10 +314,12 @@ const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
                     <div className="w-6 h-6 rounded-full flex-shrink-0">
                       {message.sender === "agent" ? (
                         supportAgent ? (
-                          <img
+                          <Image
                             src={supportAgent.avatar}
                             alt={supportAgent.name}
-                            className="w-6 h-6 rounded-full"
+                            width={24}
+                            height={24}
+                            className="rounded-full"
                           />
                         ) : (
                           <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
@@ -363,11 +370,15 @@ const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
                 <div className="flex justify-start">
                   <div className="flex items-end space-x-2 max-w-xs">
                     <div className="w-6 h-6 rounded-full">
-                      <img
-                        src={supportAgent?.avatar}
-                        alt={supportAgent?.name}
-                        className="w-6 h-6 rounded-full"
-                      />
+                      {supportAgent && (
+                        <Image
+                          src={supportAgent.avatar}
+                          alt={supportAgent.name}
+                          width={24}
+                          height={24}
+                          className="rounded-full"
+                        />
+                      )}
                     </div>
                     <div className="px-3 py-2 bg-white border rounded-lg">
                       <div className="flex space-x-1">

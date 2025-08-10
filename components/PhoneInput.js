@@ -14,7 +14,7 @@ export default function PhoneInput({ value, onChange, error }) {
 
   useEffect(() => {
     onChange(`${countryCode}${phoneNumber}`);
-  }, [countryCode, phoneNumber]);
+  }, [countryCode, phoneNumber, onChange]);
 
   const formatPhoneNumber = (value) => {
     const cleaned = value.replace(/\D/g, "");

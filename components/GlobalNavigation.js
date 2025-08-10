@@ -8,6 +8,7 @@ import { auth, db } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function GlobalNavigation() {
   const router = useRouter();
@@ -420,10 +421,13 @@ export default function GlobalNavigation() {
               className="flex items-center group flex-shrink-0"
             >
               <div className="relative">
-                <img
+                <Image
                   src="/nasosend.jpg"
                   alt="Nasosend Logo"
-                  className="h-15 sm:h-10 lg:h-19 w-auto transition-transform group-hover:scale-105"
+                  width={60}
+                  height={40}
+                  className="h-10 sm:h-12 lg:h-14 w-auto transition-transform group-hover:scale-105"
+                  priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-green-400/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
