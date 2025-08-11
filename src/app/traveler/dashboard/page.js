@@ -1,5 +1,3 @@
-//app/traveler/dashboard/page.js
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -17,6 +15,19 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import {
+  Plane,
+  Package,
+  Users,
+  AlertCircle,
+  CheckCircle,
+  X,
+  MapPin,
+  Clock,
+  ArrowRight,
+  Edit,
+  Trash,
+} from "lucide-react";
 
 export default function TravelerDashboardPage() {
   return <TravelerDashboard />;
@@ -29,7 +40,10 @@ function TravelerDashboard() {
   const [showEditTrip, setShowEditTrip] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
   const [trips, setTrips] = useState([]);
-  const [requests, setRequests] = useState([]);
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const [activeTab, setActiveTab] = useState("trips"); // New state for tabs
+  const [showRequestDetailsModal, setShowRequestDetailsModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const [tripData, setTripData] = useState({
     departureDate: "",
     arrivalDate: "",
@@ -44,46 +58,13 @@ function TravelerDashboard() {
     allowedItems: [],
   });
 
-  // Create reusable fetch functions with useCallback
-  const fetchTrips = useCallback(async () => {
-    if (!user?.uid) return;
+  // Custom modal state for alerts
+  const [showNotification, setShowNotification] = useState({
+    isVisible: false,
+    message: "",
+    type: "info",
+  });
 
-    try {
-      const q = query(
-        collection(db, "trips"),
-        where("travelerId", "==", user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const tripsData = [];
-      querySnapshot.forEach((doc) => {
-        tripsData.push({ id: doc.id, ...doc.data() });
-      });
-      setTrips(tripsData);
-    } catch (error) {
-      console.error("Error fetching trips:", error);
-    }
-  }, [user?.uid]);
-
-  const fetchRequests = useCallback(async () => {
-    if (!user?.uid) return;
-
-    try {
-      const q = query(
-        collection(db, "requests"),
-        where("travelerId", "==", user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const requestsData = [];
-      querySnapshot.forEach((doc) => {
-        requestsData.push({ id: doc.id, ...doc.data() });
-      });
-      setRequests(requestsData);
-    } catch (error) {
-      console.error("Error fetching requests:", error);
-    }
-  }, [user?.uid]);
-
-  // Legal items that can be carried from Australia to Nepal
   const legalItems = [
     "Clothing and textiles",
     "Baby formula and food",
@@ -98,6 +79,62 @@ function TravelerDashboard() {
     "Traditional Australian souvenirs",
     "Handicrafts and small gifts",
   ];
+
+  // Fetch all trips for the current traveler
+  const fetchTrips = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const q = query(
+        collection(db, "trips"),
+        where("travelerId", "==", user.uid)
+      );
+      const querySnapshot = await getDocs(q);
+      const tripsData = [];
+      querySnapshot.forEach((doc) => {
+        tripsData.push({ id: doc.id, ...doc.data() });
+      });
+      setTrips(tripsData);
+    } catch (error) {
+      console.error("Error fetching trips:", error);
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to fetch your trips. Please try again.",
+        type: "error",
+      });
+    }
+  }, [user?.uid]);
+
+  // Fetch all incoming requests for the current traveler
+  const fetchIncomingRequests = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      // Fetch requests where the travelerId matches the current user's UID
+      const q = query(
+        collection(db, "shipmentRequests"),
+        where("travelerId", "==", user.uid)
+      );
+      const querySnapshot = await getDocs(q);
+      const requestsData = [];
+      querySnapshot.forEach((doc) => {
+        requestsData.push({ id: doc.id, ...doc.data() });
+      });
+      setIncomingRequests(requestsData);
+    } catch (error) {
+      console.error("Error fetching incoming requests:", error);
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to fetch incoming requests. Please try again.",
+        type: "error",
+      });
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (user) {
+      fetchTrips();
+      fetchIncomingRequests();
+    }
+  }, [user, fetchTrips, fetchIncomingRequests]);
 
   const handleItemToggle = (item) => {
     setTripData((prev) => ({
@@ -115,14 +152,13 @@ function TravelerDashboard() {
         [field]: file,
       }));
     } else {
-      alert("Please upload a PDF file");
+      setShowNotification({
+        isVisible: true,
+        message: "Please upload a PDF file.",
+        type: "warning",
+      });
     }
   };
-
-  useEffect(() => {
-    fetchTrips();
-    fetchRequests();
-  }, [fetchTrips, fetchRequests]);
 
   const handleEditTrip = (trip) => {
     setEditingTrip(trip);
@@ -135,8 +171,8 @@ function TravelerDashboard() {
       pricePerKg: trip.pricePerKg.toString(),
       flightNumber: trip.flightNumber,
       airline: trip.airline,
-      flightItinerary: null, // Will need to be re-uploaded
-      eTicket: null, // Will need to be re-uploaded
+      flightItinerary: null,
+      eTicket: null,
       allowedItems: trip.allowedItems || [],
     });
     setShowEditTrip(true);
@@ -145,14 +181,20 @@ function TravelerDashboard() {
   const handleUpdateTrip = async () => {
     if (!editingTrip) return;
 
-    // Validation for mandatory fields (skip file validation for edit)
     if (!tripData.flightNumber || !tripData.airline) {
-      alert("Please fill in all mandatory flight details.");
+      setShowNotification({
+        isVisible: true,
+        message: "Please fill in all mandatory flight details.",
+        type: "warning",
+      });
       return;
     }
-
     if (tripData.allowedItems.length === 0) {
-      alert("Please select at least one type of item you can carry.");
+      setShowNotification({
+        isVisible: true,
+        message: "Please select at least one type of item you can carry.",
+        type: "warning",
+      });
       return;
     }
 
@@ -170,7 +212,6 @@ function TravelerDashboard() {
         updatedAt: serverTimestamp(),
       };
 
-      // Only update file fields if new files were uploaded
       if (tripData.flightItinerary) {
         tripPayload.flightItinerary = tripData.flightItinerary.name;
       }
@@ -183,68 +224,73 @@ function TravelerDashboard() {
       setShowEditTrip(false);
       setEditingTrip(null);
       fetchTrips();
-      setTripData({
-        departureDate: "",
-        arrivalDate: "",
-        departureCity: "Sydney",
-        arrivalCity: "Kathmandu",
-        availableWeight: "",
-        pricePerKg: "",
-        flightNumber: "",
-        airline: "",
-        flightItinerary: null,
-        eTicket: null,
-        allowedItems: [],
+      resetTripData();
+      setShowNotification({
+        isVisible: true,
+        message: "Trip updated successfully!",
+        type: "success",
       });
-
-      alert("Trip updated successfully!");
     } catch (error) {
       console.error("Error updating trip:", error);
-      alert("Failed to update trip. Please try again.");
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to update trip. Please try again.",
+        type: "error",
+      });
     }
   };
 
   const handleDeleteTrip = async (tripId) => {
     if (
-      !confirm(
+      !window.confirm(
         "Are you sure you want to delete this trip? This action cannot be undone."
       )
     ) {
       return;
     }
-
     try {
       await deleteDoc(doc(db, "trips", tripId));
       fetchTrips();
-      alert("Trip deleted successfully!");
+      setShowNotification({
+        isVisible: true,
+        message: "Trip deleted successfully!",
+        type: "success",
+      });
     } catch (error) {
       console.error("Error deleting trip:", error);
-      alert("Failed to delete trip. Please try again.");
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to delete trip. Please try again.",
+        type: "error",
+      });
     }
   };
 
   const handleCreateTrip = async () => {
-    // Validation for mandatory fields
     if (
       !tripData.flightNumber ||
       !tripData.airline ||
       !tripData.flightItinerary ||
       !tripData.eTicket
     ) {
-      alert(
-        "Please fill in all mandatory flight details and upload required documents."
-      );
+      setShowNotification({
+        isVisible: true,
+        message:
+          "Please fill in all mandatory flight details and upload required documents.",
+        type: "warning",
+      });
       return;
     }
-
     if (tripData.allowedItems.length === 0) {
-      alert("Please select at least one type of item you can carry.");
+      setShowNotification({
+        isVisible: true,
+        message: "Please select at least one type of item you can carry.",
+        type: "warning",
+      });
       return;
     }
 
     try {
-      // In a real implementation, you'd upload files to Firebase Storage first
-      // For now, we'll just store the file names
       const tripPayload = {
         ...tripData,
         flightItinerary: tripData.flightItinerary.name,
@@ -257,28 +303,98 @@ function TravelerDashboard() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
-
       await addDoc(collection(db, "trips"), tripPayload);
-
       setShowCreateTrip(false);
       fetchTrips();
-      setTripData({
-        departureDate: "",
-        arrivalDate: "",
-        departureCity: "Sydney",
-        arrivalCity: "Kathmandu",
-        availableWeight: "",
-        pricePerKg: "",
-        flightNumber: "",
-        airline: "",
-        flightItinerary: null,
-        eTicket: null,
-        allowedItems: [],
+      resetTripData();
+      setShowNotification({
+        isVisible: true,
+        message: "Trip created successfully!",
+        type: "success",
       });
     } catch (error) {
       console.error("Error creating trip:", error);
-      alert("Failed to create trip. Please try again.");
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to create trip. Please try again.",
+        type: "error",
+      });
     }
+  };
+
+  const handleAcceptRequest = async (request) => {
+    try {
+      // Update the request status to 'accepted'
+      await updateDoc(doc(db, "shipmentRequests", request.id), {
+        status: "accepted",
+        updatedAt: serverTimestamp(),
+      });
+
+      // Update the trip's available weight
+      const newAvailableWeight = request.availableWeight - request.weight;
+      await updateDoc(doc(db, "trips", request.tripId), {
+        availableWeight: newAvailableWeight,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Refetch data to update the UI
+      fetchIncomingRequests();
+      fetchTrips();
+      setShowRequestDetailsModal(false);
+      setShowNotification({
+        isVisible: true,
+        message: "Request accepted successfully! The sender has been notified.",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error accepting request:", error);
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to accept request. Please try again.",
+        type: "error",
+      });
+    }
+  };
+
+  const handleRejectRequest = async (request) => {
+    try {
+      // Update the request status to 'rejected'
+      await updateDoc(doc(db, "shipmentRequests", request.id), {
+        status: "rejected",
+        updatedAt: serverTimestamp(),
+      });
+
+      fetchIncomingRequests();
+      setShowRequestDetailsModal(false);
+      setShowNotification({
+        isVisible: true,
+        message: "Request rejected successfully. The sender has been notified.",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to reject request. Please try again.",
+        type: "error",
+      });
+    }
+  };
+
+  const resetTripData = () => {
+    setTripData({
+      departureDate: "",
+      arrivalDate: "",
+      departureCity: "Sydney",
+      arrivalCity: "Kathmandu",
+      availableWeight: "",
+      pricePerKg: "",
+      flightNumber: "",
+      airline: "",
+      flightItinerary: null,
+      eTicket: null,
+      allowedItems: [],
+    });
   };
 
   if (!userProfile?.verified && userProfile?.verificationPending) {
@@ -342,19 +458,7 @@ function TravelerDashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0 bg-blue-100 rounded-lg p-3">
-                <svg
-                  className="w-6 h-6 text-blue-800"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
-                  />
-                </svg>
+                <Plane className="w-6 h-6 text-blue-800" />
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Active Trips</p>
@@ -368,24 +472,15 @@ function TravelerDashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0 bg-yellow-100 rounded-lg p-3">
-                <svg
-                  className="w-6 h-6 text-yellow-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
+                <Package className="w-6 h-6 text-yellow-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Pending Requests</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {requests.filter((r) => r.status === "pending").length}
+                  {
+                    incomingRequests.filter((r) => r.status === "pending")
+                      .length
+                  }
                 </p>
               </div>
             </div>
@@ -394,92 +489,236 @@ function TravelerDashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0 bg-green-100 rounded-lg p-3">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+                <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm text-gray-600">Completed</p>
+                <p className="text-sm text-gray-600">Accepted Requests</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {trips.filter((t) => t.status === "completed").length}
+                  {
+                    incomingRequests.filter((r) => r.status === "accepted")
+                      .length
+                  }
                 </p>
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-red-100 rounded-lg p-3">
-                <svg
-                  className="w-6 h-6 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Total Earnings</p>
-                <p className="text-2xl font-semibold text-gray-900">$0</p>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Create Trip Button */}
-        <div className="mb-8">
+        {/* Tabs for Navigation */}
+        <div className="flex border-b border-gray-200 mb-6">
           <button
-            onClick={() => setShowCreateTrip(true)}
-            className="px-6 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-900 shadow-sm font-medium"
+            onClick={() => setActiveTab("trips")}
+            className={`px-4 py-2 font-medium text-sm transition-colors duration-200 ${
+              activeTab === "trips"
+                ? "border-b-2 border-blue-800 text-blue-800"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
           >
-            + Create New Trip
+            My Trips
+          </button>
+          <button
+            onClick={() => setActiveTab("requests")}
+            className={`px-4 py-2 font-medium text-sm transition-colors duration-200 ${
+              activeTab === "requests"
+                ? "border-b-2 border-red-600 text-red-600"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Incoming Requests
           </button>
         </div>
+
+        {activeTab === "trips" && (
+          <>
+            {/* Create Trip Button */}
+            <div className="mb-8">
+              <button
+                onClick={() => setShowCreateTrip(true)}
+                className="px-6 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-900 shadow-sm font-medium"
+              >
+                + Create New Trip
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Your Active Trips
+                </h3>
+              </div>
+              <div className="p-6">
+                {trips.filter((t) => t.status === "active").length > 0 ? (
+                  <div className="space-y-4">
+                    {trips
+                      .filter((t) => t.status === "active")
+                      .map((trip) => (
+                        <div
+                          key={trip.id}
+                          className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-gray-900 mb-2">
+                                {trip.departureCity} → {trip.arrivalCity}
+                              </h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-600">
+                                <div>
+                                  <span className="font-medium">Flight:</span>{" "}
+                                  {trip.flightNumber} ({trip.airline})
+                                </div>
+                                <div>
+                                  <span className="font-medium">
+                                    Departure:
+                                  </span>{" "}
+                                  {new Date(
+                                    trip.departureDate
+                                  ).toLocaleDateString()}
+                                </div>
+                                <div>
+                                  <span className="font-medium">
+                                    Available:
+                                  </span>{" "}
+                                  {trip.availableWeight}kg
+                                </div>
+                                <div>
+                                  <span className="font-medium">Price:</span> ${" "}
+                                  {trip.pricePerKg}/kg
+                                </div>
+                              </div>
+                              {trip.allowedItems &&
+                                trip.allowedItems.length > 0 && (
+                                  <div className="mt-2">
+                                    <span className="text-sm font-medium text-gray-600">
+                                      Items:{" "}
+                                    </span>
+                                    <span className="text-sm text-gray-600">
+                                      {trip.allowedItems.slice(0, 3).join(", ")}
+                                      {trip.allowedItems.length > 3 &&
+                                        ` +${
+                                          trip.allowedItems.length - 3
+                                        } more`}
+                                    </span>
+                                  </div>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                                Active
+                              </span>
+                              <button
+                                onClick={() => handleEditTrip(trip)}
+                                className="p-2 text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Edit trip"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTrip(trip.id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete trip"
+                              >
+                                <Trash className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-8">
+                    No active trips. Create one to start earning!
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === "requests" && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Incoming Shipment Requests ({incomingRequests.length})
+              </h3>
+            </div>
+            <div className="p-6">
+              {incomingRequests.length > 0 ? (
+                <div className="space-y-4">
+                  {incomingRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => {
+                        setSelectedRequest(request);
+                        setShowRequestDetailsModal(true);
+                      }}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-semibold text-gray-900">
+                          From: {request.senderName}
+                        </h4>
+                        <span
+                          className={`px-3 py-1 text-xs font-medium rounded-full ${
+                            request.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : request.status === "accepted"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {request.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Request for:{" "}
+                        <span className="font-medium">
+                          {request.itemDescription}
+                        </span>
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Weight:{" "}
+                        <span className="font-medium">{request.weight}kg</span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">
+                  No incoming shipment requests at this time.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Create/Edit Trip Modal */}
         {(showCreateTrip || showEditTrip) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">
-                {editingTrip ? "Edit Trip" : "Create New Trip"}
-              </h3>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {editingTrip ? "Edit Trip" : "Create New Trip"}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowCreateTrip(false);
+                    setShowEditTrip(false);
+                    setEditingTrip(null);
+                    resetTripData();
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
 
               <div className="space-y-6">
                 {/* Flight Information Section */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <svg
-                      className="w-5 h-5 mr-2 text-blue-800"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                      />
-                    </svg>
+                    <Plane className="w-5 h-5 mr-2 text-blue-800" />
                     Flight Information (Mandatory)
                   </h4>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -685,19 +924,7 @@ function TravelerDashboard() {
                     setShowCreateTrip(false);
                     setShowEditTrip(false);
                     setEditingTrip(null);
-                    setTripData({
-                      departureDate: "",
-                      arrivalDate: "",
-                      departureCity: "Sydney",
-                      arrivalCity: "Kathmandu",
-                      availableWeight: "",
-                      pricePerKg: "",
-                      flightNumber: "",
-                      airline: "",
-                      flightItinerary: null,
-                      eTicket: null,
-                      allowedItems: [],
-                    });
+                    resetTripData();
                   }}
                   className="px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors"
                 >
@@ -714,116 +941,137 @@ function TravelerDashboard() {
           </div>
         )}
 
-        {/* Active Trips */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Your Active Trips
-            </h3>
-          </div>
-          <div className="p-6">
-            {trips.filter((t) => t.status === "active").length > 0 ? (
-              <div className="space-y-4">
-                {trips
-                  .filter((t) => t.status === "active")
-                  .map((trip) => (
-                    <div
-                      key={trip.id}
-                      className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900 mb-2">
-                            {trip.departureCity} → {trip.arrivalCity}
-                          </h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-600">
-                            <div>
-                              <span className="font-medium">Flight:</span>{" "}
-                              {trip.flightNumber} ({trip.airline})
-                            </div>
-                            <div>
-                              <span className="font-medium">Departure:</span>{" "}
-                              {new Date(
-                                trip.departureDate
-                              ).toLocaleDateString()}
-                            </div>
-                            <div>
-                              <span className="font-medium">Available:</span>{" "}
-                              {trip.availableWeight}kg
-                            </div>
-                            <div>
-                              <span className="font-medium">Price:</span> $
-                              {trip.pricePerKg}/kg
-                            </div>
-                          </div>
-                          {trip.allowedItems &&
-                            trip.allowedItems.length > 0 && (
-                              <div className="mt-2">
-                                <span className="text-sm font-medium text-gray-600">
-                                  Items:{" "}
-                                </span>
-                                <span className="text-sm text-gray-600">
-                                  {trip.allowedItems.slice(0, 3).join(", ")}
-                                  {trip.allowedItems.length > 3 &&
-                                    ` +${trip.allowedItems.length - 3} more`}
-                                </span>
-                              </div>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                            Active
-                          </span>
-                          <button
-                            onClick={() => handleEditTrip(trip)}
-                            className="p-2 text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit trip"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTrip(trip.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete trip"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+        {/* Incoming Request Details Modal */}
+        {showRequestDetailsModal && selectedRequest && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">
+                  Shipment Request Details
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowRequestDetailsModal(false);
+                    setSelectedRequest(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
               </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">
-                No active trips. Create one to start earning!
-              </p>
-            )}
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">Sender:</span>{" "}
+                  {selectedRequest.senderName}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">Email:</span>{" "}
+                  {selectedRequest.senderEmail}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">Item:</span>{" "}
+                  {selectedRequest.itemDescription}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">Weight:</span>{" "}
+                  {selectedRequest.weight} kg
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">
+                    Delivery Address:
+                  </span>{" "}
+                  {selectedRequest.recipientAddress}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">
+                    Special Notes:
+                  </span>{" "}
+                  {selectedRequest.notes || "None"}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">Status:</span>{" "}
+                  <span
+                    className={`px-3 py-1 text-xs font-medium rounded-full ${
+                      selectedRequest.status === "pending"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : selectedRequest.status === "accepted"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {selectedRequest.status}
+                  </span>
+                </p>
+              </div>
+
+              {selectedRequest.status === "pending" && (
+                <div className="flex gap-4 mt-8 pt-6 border-t">
+                  <button
+                    onClick={() => handleAcceptRequest(selectedRequest)}
+                    className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Accept Request
+                  </button>
+                  <button
+                    onClick={() => handleRejectRequest(selectedRequest)}
+                    className="flex-1 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Reject Request
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Custom Notification Modal */}
+        {showNotification.isVisible && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black opacity-50"
+              onClick={() =>
+                setShowNotification({ ...showNotification, isVisible: false })
+              }
+            ></div>
+            <div
+              className={`relative p-6 rounded-lg shadow-lg w-full max-w-sm text-center transform scale-100 transition-all duration-300
+              ${
+                showNotification.type === "success"
+                  ? "bg-green-100 border-green-400 text-green-800"
+                  : showNotification.type === "warning"
+                  ? "bg-yellow-100 border-yellow-400 text-yellow-800"
+                  : "bg-red-100 border-red-400 text-red-800"
+              }`}
+            >
+              <button
+                onClick={() =>
+                  setShowNotification({ ...showNotification, isVisible: false })
+                }
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
+              <div className="flex justify-center mb-3">
+                {showNotification.type === "success" ? (
+                  <CheckCircle size={32} className="text-green-500" />
+                ) : showNotification.type === "warning" ? (
+                  <AlertCircle size={32} className="text-yellow-500" />
+                ) : (
+                  <AlertCircle size={32} className="text-red-500" />
+                )}
+              </div>
+              <p className="font-semibold text-lg mb-2">
+                {showNotification.type === "success"
+                  ? "Success!"
+                  : showNotification.type === "warning"
+                  ? "Warning!"
+                  : "Error!"}
+              </p>
+              <p className="text-sm">{showNotification.message}</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

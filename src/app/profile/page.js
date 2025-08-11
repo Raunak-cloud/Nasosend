@@ -50,7 +50,7 @@ export default function ProfilePage() {
       setProfileData({
         displayName:
           userProfile.verification?.fullName || userProfile.displayName || "",
-        email: userProfile.email || "",
+        email: user.email || "",
         bio: userProfile.bio || "",
         address: userProfile.address || "",
         city: userProfile.city || "",

@@ -16,11 +16,7 @@ import AuthWrapper from "@/components/AuthWrapper";
 import Link from "next/link";
 
 export default function LoginPage() {
-  return (
-    <AuthWrapper requireAuth={false}>
-      <LoginContent />
-    </AuthWrapper>
-  );
+  return <LoginContent />;
 }
 
 function LoginContent() {

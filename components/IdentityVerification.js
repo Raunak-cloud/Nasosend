@@ -1,14 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { doc, setDoc, getFirestore } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, getStorage } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  getAuth,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  updateEmail,
+  EmailAuthProvider,
+  linkWithCredential,
+} from "firebase/auth";
+import {
+  Mail,
+  CheckCircle,
+  AlertCircle,
+  X,
+  Send,
+  Loader2,
+  Lock,
+} from "lucide-react";
 
 // Initialize Firebase
 const db = getFirestore();
 const storage = getStorage();
+const auth = getAuth();
 
 export default function IdentityVerification() {
   const { user, loading } = useAuth();
@@ -21,6 +40,7 @@ export default function IdentityVerification() {
     postcode: "",
     country: "Australia",
     gender: "",
+    email: "",
   });
 
   const [stateId, setStateId] = useState(null);
@@ -28,6 +48,118 @@ export default function IdentityVerification() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Email verification state
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+  const [pendingEmailUpdate, setPendingEmailUpdate] = useState(null);
+
+  // Check if the user is coming back from an email verification link
+  useEffect(() => {
+    const verifyEmailLink = async () => {
+      if (isSignInWithEmailLink(auth, window.location.href)) {
+        let email = window.localStorage.getItem("emailForSignIn");
+        if (!email) {
+          email = window.prompt("Please provide your email for confirmation");
+        }
+
+        if (email) {
+          setIsVerifyingEmail(true);
+          try {
+            // Create email credential for linking
+            const credential = EmailAuthProvider.credentialWithLink(
+              email,
+              window.location.href
+            );
+
+            if (user) {
+              // Link the email credential to the existing user account
+              await linkWithCredential(user, credential);
+
+              // Update the user's email if it's different
+              if (user.email !== email) {
+                await updateEmail(user, email);
+              }
+
+              console.log("Email successfully linked to account!");
+            } else {
+              // Sign in with email link if no user is logged in
+              await signInWithEmailLink(auth, email, window.location.href);
+            }
+
+            // Clean up and update state
+            window.localStorage.removeItem("emailForSignIn");
+            setIsEmailVerified(true);
+            setVerificationSent(false);
+            setSubmitError("");
+            setPendingEmailUpdate(email);
+
+            // Clean up URL
+            if (window.history.replaceState) {
+              window.history.replaceState(
+                {},
+                document.title,
+                window.location.pathname
+              );
+            }
+          } catch (error) {
+            console.error("Error linking email:", error);
+            // Handle specific error cases
+            if (error.code === "auth/credential-already-in-use") {
+              setSubmitError(
+                "This email is already associated with another account."
+              );
+            } else if (error.code === "auth/email-already-in-use") {
+              setSubmitError(
+                "This email is already in use by another account."
+              );
+            } else {
+              setSubmitError(
+                "Failed to verify email. The link may be invalid or expired."
+              );
+            }
+          } finally {
+            setIsVerifyingEmail(false);
+          }
+        }
+      }
+    };
+
+    // Load persisted form data
+    const persistedData = localStorage.getItem("formData");
+    if (persistedData) {
+      setFormData(JSON.parse(persistedData));
+    }
+
+    // Update email verification status based on user state
+    if (user) {
+      // Check if user has verified email
+      const hasVerifiedEmail =
+        user.emailVerified ||
+        user.providerData.some(
+          (provider) => provider.providerId === "password"
+        );
+
+      setIsEmailVerified(hasVerifiedEmail);
+
+      // Update form data with user's email if verified
+      if (hasVerifiedEmail && user.email && user.email !== formData.email) {
+        setFormData((prev) => ({ ...prev, email: user.email }));
+      }
+
+      // Handle pending email update
+      if (pendingEmailUpdate && pendingEmailUpdate !== formData.email) {
+        setFormData((prev) => ({ ...prev, email: pendingEmailUpdate }));
+        setPendingEmailUpdate(null);
+      }
+    }
+
+    // Only run email link verification if user exists
+    if (user) {
+      verifyEmailLink();
+    }
+  }, [user, pendingEmailUpdate]);
 
   // Redirect if not authenticated
   if (loading) {
@@ -48,16 +180,57 @@ export default function IdentityVerification() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    localStorage.setItem("formData", JSON.stringify(newFormData));
+
+    // Reset email verification if email changes
+    if (name === "email" && value !== user?.email) {
+      setIsEmailVerified(false);
+      setVerificationSent(false);
+    }
+  };
+
+  const handleSendVerificationEmail = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setSubmitError("Please enter a valid email address.");
+      return;
+    }
+
+    setIsVerifyingEmail(true);
+    setSubmitError("");
+
+    const actionCodeSettings = {
+      url: window.location.href,
+      handleCodeInApp: true,
+    };
+
+    try {
+      await sendSignInLinkToEmail(auth, formData.email, actionCodeSettings);
+      window.localStorage.setItem("emailForSignIn", formData.email);
+      setVerificationSent(true);
+      setSubmitError("");
+      console.log("Verification email sent successfully.");
+    } catch (error) {
+      console.error("Error sending verification email:", error);
+      if (error.code === "auth/invalid-email") {
+        setSubmitError("Please enter a valid email address.");
+      } else if (error.code === "auth/too-many-requests") {
+        setSubmitError(
+          "Too many verification attempts. Please try again later."
+        );
+      } else {
+        setSubmitError("Failed to send verification email. Please try again.");
+      }
+    } finally {
+      setIsVerifyingEmail(false);
+    }
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
       const allowedTypes = [
         "image/jpeg",
         "image/jpg",
@@ -71,7 +244,6 @@ export default function IdentityVerification() {
         return;
       }
 
-      // Validate file size (5MB max)
       if (file.size > 5 * 1024 * 1024) {
         setSubmitError("File size must be less than 5MB.");
         return;
@@ -83,6 +255,10 @@ export default function IdentityVerification() {
   };
 
   const validateForm = () => {
+    if (!isEmailVerified) {
+      setSubmitError("Please verify your email address first.");
+      return false;
+    }
     if (!formData.fullName.trim()) {
       setSubmitError("Full name is required.");
       return false;
@@ -108,7 +284,6 @@ export default function IdentityVerification() {
       return false;
     }
 
-    // Validate Australian postcode format (4 digits)
     const postcodeRegex = /^\d{4}$/;
     if (!postcodeRegex.test(formData.postcode)) {
       setSubmitError("Please enter a valid Australian postcode (4 digits).");
@@ -124,7 +299,6 @@ export default function IdentityVerification() {
       const fileName = `state-ids/${userId}/state-id-${Date.now()}.${fileExtension}`;
       const storageRef = ref(storage, fileName);
 
-      // Upload with progress tracking
       const snapshot = await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
@@ -145,14 +319,11 @@ export default function IdentityVerification() {
     setUploadProgress(0);
 
     try {
-      // Simulate upload progress
       setUploadProgress(25);
 
-      // Upload state ID document
       const stateIdUrl = await uploadStateId(stateId, user.uid);
       setUploadProgress(75);
 
-      // Prepare verification data
       const verificationData = {
         fullName: formData.fullName.trim(),
         streetAddress: formData.streetAddress.trim(),
@@ -160,12 +331,13 @@ export default function IdentityVerification() {
         country: formData.country,
         postcode: formData.postcode.trim(),
         gender: formData.gender,
+        email: formData.email,
+        emailVerified: isEmailVerified,
         stateIdUrl: stateIdUrl,
         submittedAt: new Date().toISOString(),
         status: "pending",
       };
 
-      // Save to Firestore
       const userDocRef = doc(db, "users", user.uid);
       await setDoc(
         userDocRef,
@@ -180,7 +352,9 @@ export default function IdentityVerification() {
       setUploadProgress(100);
       setSubmitSuccess(true);
 
-      // Redirect after successful submission
+      // Clear localStorage data on successful submission
+      localStorage.removeItem("formData");
+
       setTimeout(() => {
         router.push("/traveler/dashboard");
       }, 3000);
@@ -336,6 +510,72 @@ export default function IdentityVerification() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="Enter your full legal name as it appears on your ID"
                     />
+                  </div>
+
+                  {/* Email Verification Field */}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-semibold text-gray-700 mb-2"
+                    >
+                      Email Address *
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <div className="relative flex-1">
+                        <input
+                          id="email"
+                          name="email"
+                          type="email"
+                          required
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          className={`w-full px-4 py-3 border ${
+                            isEmailVerified
+                              ? "border-green-500 bg-green-50"
+                              : "border-gray-300"
+                          } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12`}
+                          placeholder="Enter your email address"
+                          disabled={isEmailVerified || verificationSent}
+                        />
+                        {isEmailVerified && (
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          </div>
+                        )}
+                      </div>
+                      {!isEmailVerified && (
+                        <button
+                          type="button"
+                          onClick={handleSendVerificationEmail}
+                          disabled={isVerifyingEmail || formData.email === ""}
+                          className={`px-4 py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center whitespace-nowrap
+                            ${
+                              isVerifyingEmail || formData.email === ""
+                                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
+                        >
+                          {isVerifyingEmail && (
+                            <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                          )}
+                          {!isVerifyingEmail && !verificationSent && "Verify"}
+                          {verificationSent && "Resend"}
+                        </button>
+                      )}
+                    </div>
+                    {verificationSent && !isEmailVerified && (
+                      <p className="mt-2 text-sm text-yellow-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-2" />A verification
+                        link has been sent to your email. Please check your
+                        inbox and click the link to continue.
+                      </p>
+                    )}
+                    {isEmailVerified && (
+                      <p className="mt-2 text-sm text-green-600 flex items-center">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Email successfully verified and linked to your account!
+                      </p>
+                    )}
                   </div>
 
                   {/* Street Address */}
@@ -599,8 +839,13 @@ export default function IdentityVerification() {
             <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-8 sm:px-12 py-6 border-t border-gray-200">
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-8 rounded-2xl font-bold text-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg"
+                disabled={isSubmitting || !isEmailVerified}
+                className={`w-full text-white py-4 px-8 rounded-2xl font-bold text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 shadow-lg
+                ${
+                  isSubmitting || !isEmailVerified
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                }`}
               >
                 {isSubmitting ? (
                   <div className="flex items-center justify-center">
@@ -629,6 +874,12 @@ export default function IdentityVerification() {
                   "Submit Identity Verification"
                 )}
               </button>
+              {!isEmailVerified && (
+                <div className="mt-4 p-3 bg-red-50 rounded-xl text-sm text-red-700 text-center flex items-center justify-center">
+                  <Lock className="w-4 h-4 mr-2" />
+                  Please verify your email to enable submission.
+                </div>
+              )}
             </div>
           </form>
         </div>

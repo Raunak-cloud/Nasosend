@@ -27,6 +27,12 @@ import {
   Star,
   CreditCard,
   Gift,
+  Filter,
+  ChevronDown,
+  X,
+  AlertCircle,
+  Phone,
+  Mail,
 } from "lucide-react";
 
 export default function SenderDashboardPage() {
@@ -48,6 +54,40 @@ export default function SenderDashboardPage() {
     notes: "",
   });
   const [showBuyTokens, setShowBuyTokens] = useState(false);
+  // New state to manage the visibility of contact details for each request
+  const [showContact, setShowContact] = useState({});
+
+  // Custom modal state for alerts
+  const [showNotification, setShowNotification] = useState({
+    isVisible: false,
+    message: "",
+    type: "info",
+  });
+
+  // Filter states
+  const [filters, setFilters] = useState({
+    gender: "",
+    pricePerKg: 100, // Max price per kg
+    itemPreferences: [],
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [expandedItems, setExpandedItems] = useState({});
+
+  // Legal items for item preference filter
+  const legalItems = [
+    "Clothing and textiles",
+    "Baby formula and food",
+    "Vitamins and supplements",
+    "Books and educational materials",
+    "Small electronics (phone accessories, chargers)",
+    "Personal care items (cosmetics, toiletries)",
+    "Chocolates and snacks",
+    "Spices and tea",
+    "Toys and games",
+    "Stationery and office supplies",
+    "Traditional Australian souvenirs",
+    "Handicrafts and small gifts",
+  ];
 
   const colors = {
     primaryRed: "#DC143C",
@@ -67,7 +107,7 @@ export default function SenderDashboardPage() {
 
   // Token information
   const [tokenInfo, setTokenInfo] = useState({
-    availableTokens: 5,
+    availableTokens: 0,
     expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
   });
 
@@ -83,7 +123,6 @@ export default function SenderDashboardPage() {
     try {
       console.log("🔍 Fetching trips for user:", user.uid);
 
-      // Fetch all active trips except those created by the current user
       const q = query(
         collection(db, "trips"),
         where("status", "==", "active"),
@@ -94,7 +133,6 @@ export default function SenderDashboardPage() {
       console.log("📊 Raw snapshot size:", querySnapshot.size);
 
       const tripsData = [];
-
       querySnapshot.forEach((doc) => {
         const tripData = { id: doc.id, ...doc.data() };
         console.log("🎯 Processing trip:", {
@@ -105,7 +143,6 @@ export default function SenderDashboardPage() {
           isOwnTrip: tripData.travelerId === user.uid,
         });
 
-        // Exclude trips created by the current user
         if (tripData.travelerId !== user.uid) {
           tripsData.push(tripData);
         }
@@ -117,6 +154,11 @@ export default function SenderDashboardPage() {
       setAvailableTrips(tripsData);
     } catch (error) {
       console.error("❌ Error fetching trips:", error);
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to fetch available trips. Please try again later.",
+        type: "error",
+      });
     }
   }, [user?.uid]);
 
@@ -126,8 +168,7 @@ export default function SenderDashboardPage() {
     try {
       const q = query(
         collection(db, "shipmentRequests"),
-        where("senderId", "==", user.uid),
-        orderBy("createdAt", "desc")
+        where("senderId", "==", user.uid)
       );
       const querySnapshot = await getDocs(q);
       const requestsData = [];
@@ -137,6 +178,11 @@ export default function SenderDashboardPage() {
       setMyRequests(requestsData);
     } catch (error) {
       console.error("Error fetching requests:", error);
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to fetch your requests. Please try again later.",
+        type: "error",
+      });
     }
   }, [user?.uid]);
 
@@ -152,85 +198,82 @@ export default function SenderDashboardPage() {
     return null;
   }
 
+  // Handle the request submission
   const handleSendRequest = async () => {
     if (!selectedTrip) return;
 
-    console.log("📤 Sending request:", {
-      trip: selectedTrip.id,
-      traveler: selectedTrip.travelerName,
-      requestData,
-    });
+    // --- Client-side validation ---
+    if (tokenInfo.availableTokens <= 0) {
+      setShowNotification({
+        isVisible: true,
+        message:
+          "You have no available tokens. Please purchase more tokens to send requests. Tokens are spent only when the traveler has approved the request",
+        type: "warning",
+      });
+      return;
+    }
+    console.log("REQUESSSSSSt", requestData);
+    if (
+      !requestData.itemDescription ||
+      !requestData.weight ||
+      !requestData.recipientName ||
+      !requestData.recipientPhone ||
+      !requestData.recipientAddress
+    ) {
+      setShowNotification({
+        isVisible: true,
+        message: "Please fill in all required fields.",
+        type: "warning",
+      });
+      return;
+    }
+
+    const requestedWeight = parseFloat(requestData.weight);
+    if (isNaN(requestedWeight) || requestedWeight <= 0) {
+      setShowNotification({
+        isVisible: true,
+        message:
+          "Invalid weight provided. Please enter a number greater than 0.",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (requestedWeight > selectedTrip.availableWeight) {
+      setShowNotification({
+        isVisible: true,
+        message: `Requested weight (${requestedWeight}kg) exceeds the available weight (${selectedTrip.availableWeight}kg). Please request a smaller weight.`,
+        type: "warning",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      // Check if user has available tokens
-      if (tokenInfo.availableTokens <= 0) {
-        console.log("❌ No tokens available");
-        alert(
-          "You have no available tokens. Please purchase more tokens to send requests."
-        );
-        return;
+      const response = await fetch("/api/send-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestData,
+          selectedTrip,
+          senderId: user.uid,
+          senderName:
+            userProfile?.verification?.fullName ||
+            user.email?.split("@")[0] ||
+            "Unknown Sender",
+          senderEmail: user.email || "guitartap132@gmail.com",
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send request.");
       }
 
-      // Validate required fields
-      if (
-        !requestData.itemDescription ||
-        !requestData.weight ||
-        !requestData.recipientName ||
-        !requestData.recipientPhone ||
-        !requestData.recipientAddress
-      ) {
-        console.log("❌ Missing required fields");
-        alert("Please fill in all required fields.");
-        return;
-      }
-
-      // Create shipment request in Firestore
-      const shipmentRequest = {
-        ...requestData,
-        senderId: user.uid,
-        senderName:
-          userProfile?.displayName ||
-          user.email?.split("@")[0] ||
-          "Unknown Sender",
-        senderEmail: user.email,
-        tripId: selectedTrip.id,
-        travelerId: selectedTrip.travelerId,
-        travelerName: selectedTrip.travelerName,
-        travelerPhone: selectedTrip.travelerPhone,
-        status: "pending",
-        totalCost:
-          parseFloat(requestData.weight) * parseFloat(selectedTrip.pricePerKg),
-        departureDate: selectedTrip.departureDate,
-        arrivalDate: selectedTrip.arrivalDate,
-        departureCity: selectedTrip.departureCity,
-        arrivalCity: selectedTrip.arrivalCity,
-        airline: selectedTrip.airline || "",
-        flightNumber: selectedTrip.flightNumber || "",
-        weight: parseFloat(requestData.weight),
-        quantity: parseInt(requestData.quantity),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      console.log("💾 Saving shipment request:", shipmentRequest);
-
-      // Save to Firestore
-      const docRef = await addDoc(
-        collection(db, "shipmentRequests"),
-        shipmentRequest
-      );
-      console.log("✅ Shipment request saved with ID:", docRef.id);
-
-      // Add to local state for immediate UI update
-      const newRequest = {
-        ...shipmentRequest,
-        id: docRef.id,
-        createdAt: new Date(),
-      };
-      setMyRequests([newRequest, ...myRequests]);
-
-      // Decrease available tokens
+      // Update local state on success
       setTokenInfo((prev) => ({
         ...prev,
         availableTokens: prev.availableTokens - 1,
@@ -248,14 +291,22 @@ export default function SenderDashboardPage() {
         notes: "",
       });
 
-      console.log("🎉 Request sent successfully!");
-      alert("Request sent successfully! The traveler will contact you soon.");
+      // Show success notification
+      setShowNotification({
+        isVisible: true,
+        message:
+          "Request sent successfully! The traveler will contact you soon.",
+        type: "success",
+      });
 
-      // Refresh data
       await fetchMyRequests();
     } catch (error) {
       console.error("❌ Error sending request:", error);
-      alert("Failed to send request. Please try again.");
+      setShowNotification({
+        isVisible: true,
+        message: `Failed to send request: ${error.message}`,
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -264,8 +315,8 @@ export default function SenderDashboardPage() {
   const getStatusBadge = (status) => {
     const badges = {
       pending: "bg-yellow-100 text-yellow-800 border border-yellow-200",
-      accepted: "bg-blue-100 text-blue-800 border border-blue-200",
-      delivered: "bg-green-100 text-green-800 border border-green-200",
+      accepted: "bg-green-100 text-green-800 border border-green-200",
+      delivered: "bg-blue-100 text-blue-800 border border-blue-200",
       cancelled: "bg-red-100 text-red-800 border border-red-200",
     };
     return badges[status] || "bg-gray-100 text-gray-800 border border-gray-200";
@@ -277,6 +328,31 @@ export default function SenderDashboardPage() {
       month: "long",
       year: "numeric",
     });
+  };
+
+  const filteredTrips = availableTrips.filter((trip) => {
+    const genderMatch =
+      filters.gender === "" || trip.travelerGender === filters.gender;
+    const priceMatch = trip.pricePerKg <= filters.pricePerKg;
+    const itemMatch =
+      filters.itemPreferences.length === 0 ||
+      filters.itemPreferences.every((item) => trip.allowedItems.includes(item));
+    return genderMatch && priceMatch && itemMatch;
+  });
+
+  const toggleItems = (tripId) => {
+    setExpandedItems((prev) => ({
+      ...prev,
+      [tripId]: !prev[tripId],
+    }));
+  };
+
+  // Toggle contact info visibility
+  const toggleContactInfo = (requestId) => {
+    setShowContact((prev) => ({
+      ...prev,
+      [requestId]: !prev[requestId],
+    }));
   };
 
   return (
@@ -432,7 +508,11 @@ export default function SenderDashboardPage() {
               availableTokens: prev.availableTokens + tokens,
               expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Reset expiry
             }));
-            alert(`Successfully purchased ${tokens} tokens for $${amount}!`);
+            setShowNotification({
+              isVisible: true,
+              message: `Successfully purchased ${tokens} tokens for $${amount}!`,
+              type: "success",
+            });
           }}
         />
 
@@ -469,7 +549,7 @@ export default function SenderDashboardPage() {
                   className="text-xl sm:text-2xl lg:text-3xl font-bold"
                   style={{ color: colors.darkGray }}
                 >
-                  {availableTrips.length}
+                  {filteredTrips.length}
                 </p>
                 <p className="text-xs text-green-600 font-medium">Active now</p>
               </div>
@@ -616,7 +696,7 @@ export default function SenderDashboardPage() {
                       color: colors.primaryBlue,
                     }}
                   >
-                    {availableTrips.length}
+                    {filteredTrips.length}
                   </span>
                 </span>
               </button>
@@ -675,7 +755,103 @@ export default function SenderDashboardPage() {
           <div className="p-4 sm:p-6 lg:p-8">
             {activeTab === "available" ? (
               <div>
-                {availableTrips.length > 0 ? (
+                {/* Filters Section */}
+                <div className="mb-6 sm:mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3
+                      className="text-lg sm:text-xl font-bold"
+                      style={{ color: colors.darkGray }}
+                    >
+                      Filters
+                    </h3>
+                    <button
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-800"
+                    >
+                      <Filter className="w-4 h-4 mr-1" />
+                      {showFilters ? "Hide" : "Show"} Filters
+                    </button>
+                  </div>
+                  {showFilters && (
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                      {/* Gender Preference */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Gender Preference
+                        </label>
+                        <select
+                          value={filters.gender}
+                          onChange={(e) =>
+                            setFilters({ ...filters, gender: e.target.value })
+                          }
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                        >
+                          <option value="">No Preference</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      {/* Price Per Kg */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Price per Kg (Max: ${filters.pricePerKg})
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={filters.pricePerKg}
+                          onChange={(e) =>
+                            setFilters({
+                              ...filters,
+                              pricePerKg: parseInt(e.target.value),
+                            })
+                          }
+                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Item Preference */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Item Preference
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {legalItems.map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => {
+                                setFilters((prevFilters) => {
+                                  const newItemPreferences =
+                                    prevFilters.itemPreferences.includes(item)
+                                      ? prevFilters.itemPreferences.filter(
+                                          (i) => i !== item
+                                        )
+                                      : [...prevFilters.itemPreferences, item];
+                                  return {
+                                    ...prevFilters,
+                                    itemPreferences: newItemPreferences,
+                                  };
+                                });
+                              }}
+                              className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                filters.itemPreferences.includes(item)
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {filteredTrips.length > 0 ? (
                   <div className="mb-4 sm:mb-6">
                     <h3
                       className="text-lg sm:text-xl font-semibold mb-1 sm:mb-2"
@@ -684,8 +860,8 @@ export default function SenderDashboardPage() {
                       Find Your Perfect Travel Partner
                     </h3>
                     <p className="text-sm sm:text-base text-gray-600">
-                      Choose from {availableTrips.length} verified travelers
-                      heading to your destination
+                      Showing {filteredTrips.length} verified travelers heading
+                      to your destination
                     </p>
                   </div>
                 ) : (
@@ -731,349 +907,182 @@ export default function SenderDashboardPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                  {availableTrips.map((trip) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredTrips.map((trip) => (
                     <div
                       key={trip.id}
-                      className="group bg-white border rounded-lg sm:rounded-xl hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 overflow-hidden"
-                      style={{
-                        borderColor: colors.borderGray,
-                        hoverBorderColor: colors.primaryBlue,
-                      }}
+                      className="group bg-white border border-gray-200 rounded-xl hover:shadow-lg hover:border-blue-300 transition-all duration-300 transform hover:-translate-y-1"
                     >
-                      <div className="p-4 sm:p-6">
-                        {/* Traveler Info */}
-                        <div className="flex items-center mb-4 sm:mb-6">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center">
-                              <h4
-                                className="font-bold text-sm sm:text-base lg:text-lg truncate mr-2"
-                                style={{ color: colors.darkGray }}
-                              >
-                                {trip.travelerName}
-                              </h4>
-                              {trip.verified && (
-                                <div
-                                  className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                                  style={{ backgroundColor: colors.gold }}
-                                >
-                                  <svg
-                                    className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3 text-white"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </div>
-                              )}
+                      <div className="p-4 flex flex-col h-full">
+                        {/* Header with traveler info and price */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center flex-1 min-w-0">
+                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                              <Users className="w-5 h-5 text-gray-500" />
                             </div>
-                            <div className="flex items-center text-xs sm:text-sm text-gray-600 mt-1">
-                              <span
-                                className="px-2 py-1 rounded-full text-xs font-medium"
-                                style={{ backgroundColor: colors.lightGray }}
-                              >
-                                {trip.verified
-                                  ? "Verified traveler"
-                                  : "New traveler"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Route Info */}
-                        <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
-                          <div
-                            className="flex items-center justify-between p-2.5 sm:p-3 rounded-lg sm:rounded-xl"
-                            style={{ backgroundColor: colors.lightGray }}
-                          >
-                            <span className="text-xs sm:text-sm font-medium text-gray-600">
-                              Route
-                            </span>
-                            <span
-                              className="font-bold flex items-center text-sm sm:text-base"
-                              style={{ color: colors.darkGray }}
-                            >
-                              {trip.departureCity}
-                              <svg
-                                className="w-3 h-3 sm:w-4 sm:h-4 mx-1.5 sm:mx-2 text-gray-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M17 8l4 4m0 0l-4 4m4-4H3"
-                                />
-                              </svg>
-                              {trip.arrivalCity}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                            <div
-                              className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl"
-                              style={{ backgroundColor: colors.lighterBlue }}
-                            >
-                              <p
-                                className="text-xs font-medium mb-1"
-                                style={{ color: colors.primaryBlue }}
-                              >
-                                Departure
-                              </p>
-                              <p
-                                className="text-xs sm:text-sm font-bold"
-                                style={{ color: colors.primaryBlue }}
-                              >
-                                {new Date(
-                                  trip.departureDate
-                                ).toLocaleDateString("en-AU", {
-                                  month: "short",
-                                  day: "numeric",
-                                })}
-                              </p>
-                            </div>
-                            <div
-                              className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl"
-                              style={{ backgroundColor: colors.lighterRed }}
-                            >
-                              <p
-                                className="text-xs font-medium mb-1"
-                                style={{ color: colors.primaryRed }}
-                              >
-                                Arrival
-                              </p>
-                              <p
-                                className="text-xs sm:text-sm font-bold"
-                                style={{ color: colors.primaryRed }}
-                              >
-                                {new Date(trip.arrivalDate).toLocaleDateString(
-                                  "en-AU",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                  }
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center">
+                                <h4 className="font-bold text-gray-900 text-sm truncate mr-2">
+                                  {trip.travelerName}
+                                </h4>
+                                {trip.verified && (
+                                  <div className="w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <CheckCircle className="w-2.5 h-2.5 text-white" />
+                                  </div>
                                 )}
+                              </div>
+                              <p className="text-xs text-gray-500">
+                                {trip.travelerGender}
                               </p>
                             </div>
                           </div>
+                          <div className="flex flex-col items-end ml-2">
+                            <span className="text-lg font-bold text-blue-600">
+                              ${trip.pricePerKg}
+                              <span className="text-sm font-normal text-gray-500">
+                                /kg
+                              </span>
+                            </span>
+                          </div>
+                        </div>
 
-                          <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-3">
-                            <div
-                              className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl"
-                              style={{ backgroundColor: colors.lighterBlue }}
-                            >
-                              <p
-                                className="text-xs font-medium mb-1"
-                                style={{ color: colors.primaryBlue }}
-                              >
-                                Capacity
-                              </p>
-                              <p
-                                className="text-xs sm:text-sm font-bold"
-                                style={{ color: colors.primaryBlue }}
-                              >
-                                {trip.availableWeight}kg
-                              </p>
+                        {/* Route information */}
+                        <div className="flex items-center justify-between text-xs text-gray-600 mb-3">
+                          <div className="flex items-center flex-1 min-w-0">
+                            <MapPin className="w-3 h-3 mr-1 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">
+                              {trip.departureCity}
+                            </span>
+                          </div>
+                          <ArrowRight className="w-3 h-3 text-gray-400 mx-2 flex-shrink-0" />
+                          <div className="flex items-center flex-1 min-w-0">
+                            <MapPin className="w-3 h-3 mr-1 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{trip.arrivalCity}</span>
+                          </div>
+                        </div>
+
+                        {/* Available weight */}
+                        <div className="flex items-center justify-center mb-3">
+                          <div className="bg-blue-50 px-3 py-1 rounded-full">
+                            <span className="text-xs font-medium text-blue-700">
+                              {/* Handle NaN case and provide fallback */}
+                              {trip.availableWeight &&
+                              !isNaN(trip.availableWeight)
+                                ? `${trip.availableWeight} kg available`
+                                : trip.maxWeight && !isNaN(trip.maxWeight)
+                                ? `${trip.maxWeight} kg available`
+                                : "Weight info unavailable"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Travel dates */}
+                        <div className="mb-4">
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="text-center p-2 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-center mb-1">
+                                <Clock className="w-3 h-3 mr-1 text-gray-400" />
+                                <span className="font-medium text-gray-600">
+                                  Departure
+                                </span>
+                              </div>
+                              <span className="text-gray-800 font-semibold">
+                                {trip.departureDate
+                                  ? new Date(
+                                      trip.departureDate
+                                    ).toLocaleDateString("en-AU", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    })
+                                  : "TBD"}
+                              </span>
                             </div>
-                            <div
-                              className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl"
-                              style={{ backgroundColor: colors.lighterRed }}
-                            >
-                              <p
-                                className="text-xs font-medium mb-1"
-                                style={{ color: colors.primaryRed }}
-                              >
-                                Duration
-                              </p>
-                              <p
-                                className="text-xs sm:text-sm font-bold"
-                                style={{ color: colors.primaryRed }}
-                              >
-                                {Math.ceil(
-                                  (new Date(trip.arrivalDate) -
-                                    new Date(trip.departureDate)) /
-                                    (1000 * 60 * 60 * 24)
-                                )}{" "}
-                                days
-                              </p>
+                            <div className="text-center p-2 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-center mb-1">
+                                <Clock className="w-3 h-3 mr-1 text-gray-400" />
+                                <span className="font-medium text-gray-600">
+                                  Arrival
+                                </span>
+                              </div>
+                              <span className="text-gray-800 font-semibold">
+                                {trip.arrivalDate
+                                  ? new Date(
+                                      trip.arrivalDate
+                                    ).toLocaleDateString("en-AU", {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    })
+                                  : "TBD"}
+                              </span>
                             </div>
                           </div>
                         </div>
 
-                        {/* Price */}
-                        <div
-                          className="flex items-center justify-between mb-3 sm:mb-4 p-3 sm:p-4 rounded-lg sm:rounded-xl border"
-                          style={{
-                            background: `linear-gradient(to right, ${colors.lighterRed}, ${colors.lighterBlue})`,
-                            borderColor: colors.borderGray,
-                          }}
-                        >
-                          <span className="text-xs sm:text-sm font-medium text-gray-700">
-                            Price per kg
-                          </span>
-                          <span
-                            className="text-lg sm:text-xl lg:text-2xl font-bold text-green-700"
-                            style={{ color: colors.primaryRed }}
-                          >
-                            ${trip.pricePerKg}
-                          </span>
-                        </div>
-
-                        {/* Flight Info */}
-                        {trip.airline && trip.flightNumber ? (
-                          <div
-                            className="rounded-lg sm:rounded-xl p-2.5 sm:p-3 mb-3 sm:mb-4"
-                            style={{ backgroundColor: colors.lightGray }}
-                          >
-                            <div
-                              className="flex items-center text-xs sm:text-sm"
-                              style={{ color: colors.darkGray }}
-                            >
-                              <svg
-                                className="w-3 h-3 sm:w-4 sm:h-4 mr-2"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                                />
-                              </svg>
-                              <span className="font-medium">
-                                {trip.airline}
-                              </span>
-                              <span
-                                className="mx-2"
-                                style={{ color: colors.borderGray }}
-                              >
-                                •
-                              </span>
-                              <span>{trip.flightNumber}</span>
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {/* Allowed Items */}
-                        {trip.allowedItems && trip.allowedItems.length > 0 && (
-                          <div className="mb-4 sm:mb-6">
-                            <p className="text-xs sm:text-sm text-gray-600 mb-2 font-medium">
+                        {/* Allowed items */}
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-xs font-medium text-gray-700">
                               Can carry:
                             </p>
+                            <button
+                              type="button"
+                              onClick={() => toggleItems(trip.id)}
+                              className="text-blue-600 text-xs flex items-center"
+                            >
+                              {expandedItems[trip.id] ? "Hide" : "Show all"}
+                              <ChevronDown
+                                className={`w-3 h-3 ml-1 transform transition-transform ${
+                                  expandedItems[trip.id] ? "rotate-180" : ""
+                                }`}
+                              />
+                            </button>
+                          </div>
+                          <div
+                            className={`text-xs text-gray-600 transition-all duration-300 overflow-hidden ${
+                              expandedItems[trip.id] ? "h-auto" : "h-6"
+                            }`}
+                          >
                             <div className="flex flex-wrap gap-1">
-                              {trip.allowedItems
-                                .slice(0, 3)
-                                .map((item, index) => (
+                              {trip.allowedItems &&
+                              trip.allowedItems.length > 0 ? (
+                                trip.allowedItems.map((item, index) => (
                                   <span
                                     key={index}
-                                    className="px-2 py-1 text-xs rounded-md"
-                                    style={{
-                                      backgroundColor: colors.lighterBlue,
-                                      color: colors.primaryBlue,
-                                    }}
+                                    className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
                                   >
                                     {item}
                                   </span>
-                                ))}
-                              {trip.allowedItems.length > 3 && (
-                                <span
-                                  className="px-2 py-1 text-xs rounded-md"
-                                  style={{
-                                    backgroundColor: colors.lightGray,
-                                    color: colors.darkGray,
-                                  }}
-                                >
-                                  +{trip.allowedItems.length - 3} more
+                                ))
+                              ) : (
+                                <span className="text-gray-400 italic">
+                                  No items specified
                                 </span>
                               )}
                             </div>
                           </div>
-                        )}
+                        </div>
 
-                        {/* Verification Warning */}
-                        {!userProfile?.verified && (
-                          <div
-                            className="mb-3 p-3 rounded-lg sm:rounded-xl border"
-                            style={{
-                              backgroundColor: colors.goldLight,
-                              borderColor: colors.gold,
-                            }}
-                          >
-                            <div className="flex items-start">
-                              <div
-                                className="w-5 h-5 rounded-lg flex items-center justify-center mr-2 flex-shrink-0 mt-0.5"
-                                style={{ backgroundColor: colors.gold }}
-                              >
-                                <svg
-                                  className="w-3 h-3 text-white"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p
-                                  className="text-xs sm:text-sm font-medium"
-                                  style={{ color: colors.goldDark }}
-                                >
-                                  Verification required to send requests
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Action Button */}
+                        {/* Send request button */}
                         <button
                           onClick={() => {
                             if (!userProfile?.verified) {
-                              alert(
-                                "You need to verify your identity before sending requests. Please complete the verification process first."
-                              );
-                              return;
-                            }
-
-                            if (tokenInfo.availableTokens <= 0) {
-                              alert(
-                                "You have no available tokens. Please purchase more tokens to send requests."
-                              );
+                              setShowNotification({
+                                isVisible: true,
+                                message:
+                                  "You need to verify your identity before sending requests. Please complete the verification process first.",
+                                type: "warning",
+                              });
                               return;
                             }
                             setSelectedTrip(trip);
                             setShowRequestModal(true);
                           }}
-                          className={`w-full py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold transition-all duration-200 text-sm sm:text-base ${
-                            !userProfile?.verified ||
-                            tokenInfo.availableTokens <= 0
-                              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                              : "text-white transform hover:scale-105 shadow-md hover:shadow-lg"
-                          }`}
-                          style={{
-                            background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
-                          }}
-                          disabled={
-                            !userProfile?.verified ||
-                            tokenInfo.availableTokens <= 0
-                          }
+                          className="mt-4 w-full py-2.5 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                          disabled={!userProfile?.verified}
                         >
-                          {!userProfile?.verified
-                            ? "Verification Required"
-                            : tokenInfo.availableTokens > 0
-                            ? "Send Request"
-                            : "No Tokens Available"}
+                          Send Request
                         </button>
                       </div>
                     </div>
@@ -1191,9 +1200,65 @@ export default function SenderDashboardPage() {
                                 request.departureDate
                               ).toLocaleDateString("en-AU")}
                             </p>
+                            <p>
+                              <span className="font-medium">Arrival:</span>{" "}
+                              {new Date(request.arrivalDate).toLocaleDateString(
+                                "en-AU"
+                              )}
+                            </p>
                           </div>
                         </div>
                       </div>
+
+                      {/* Contact Traveler button and info */}
+                      {request.status === "accepted" && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <button
+                            onClick={() => toggleContactInfo(request.id)}
+                            className="w-full py-2.5 rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-colors flex items-center justify-center"
+                          >
+                            {showContact[request.id] ? (
+                              <>
+                                <X className="w-4 h-4 mr-2" />
+                                Hide Contact Info
+                              </>
+                            ) : (
+                              <>
+                                <Users className="w-4 h-4 mr-2" />
+                                Contact Traveler
+                              </>
+                            )}
+                          </button>
+                          {showContact[request.id] && (
+                            <div className="mt-4 p-4 rounded-lg bg-green-50 text-green-800">
+                              <p className="flex items-center text-sm mb-2">
+                                <Phone className="w-4 h-4 mr-2" />
+                                <span className="font-semibold">
+                                  Phone:
+                                </span>{" "}
+                                <a
+                                  href={`tel:${request.travelerPhone}`}
+                                  className="underline ml-1"
+                                >
+                                  {request.travelerPhone}
+                                </a>
+                              </p>
+                              <p className="flex items-center text-sm">
+                                <Mail className="w-4 h-4 mr-2" />
+                                <span className="font-semibold">
+                                  Email:
+                                </span>{" "}
+                                <a
+                                  href={`mailto:${request.travelerEmail}`}
+                                  className="underline ml-1"
+                                >
+                                  {request.travelerEmail}
+                                </a>
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
 
@@ -1542,6 +1607,54 @@ export default function SenderDashboardPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Notification Modal */}
+        {showNotification.isVisible && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black opacity-50"
+              onClick={() =>
+                setShowNotification({ ...showNotification, isVisible: false })
+              }
+            ></div>
+            <div
+              className={`relative p-6 rounded-lg shadow-lg w-full max-w-sm text-center transform scale-100 transition-all duration-300
+              ${
+                showNotification.type === "success"
+                  ? "bg-green-100 border-green-400 text-green-800"
+                  : showNotification.type === "warning"
+                  ? "bg-yellow-100 border-yellow-400 text-yellow-800"
+                  : "bg-red-100 border-red-400 text-red-800"
+              }`}
+            >
+              <button
+                onClick={() =>
+                  setShowNotification({ ...showNotification, isVisible: false })
+                }
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
+              <div className="flex justify-center mb-3">
+                {showNotification.type === "success" ? (
+                  <CheckCircle size={32} className="text-green-500" />
+                ) : showNotification.type === "warning" ? (
+                  <AlertCircle size={32} className="text-yellow-500" />
+                ) : (
+                  <AlertCircle size={32} className="text-red-500" />
+                )}
+              </div>
+              <p className="font-semibold text-lg mb-2">
+                {showNotification.type === "success"
+                  ? "Success!"
+                  : showNotification.type === "warning"
+                  ? "Warning!"
+                  : "Error!"}
+              </p>
+              <p className="text-sm">{showNotification.message}</p>
             </div>
           </div>
         )}

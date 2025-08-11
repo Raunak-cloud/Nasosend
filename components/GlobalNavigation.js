@@ -458,11 +458,6 @@ export default function GlobalNavigation() {
     { href: "/support", label: "Support", paths: ["/support"] },
   ];
 
-  // Don't show navigation on login page
-  if (pathname === "/login") {
-    return null;
-  }
-
   return (
     <nav
       className="bg-white/95 backdrop-blur-md shadow-lg border-b sticky top-0 z-50"
