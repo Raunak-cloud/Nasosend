@@ -107,7 +107,7 @@ export default function SenderDashboardPage() {
 
   // Token information
   const [tokenInfo, setTokenInfo] = useState({
-    availableTokens: 0,
+    availableTokens: 10,
     expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
   });
 
