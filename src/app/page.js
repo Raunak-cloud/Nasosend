@@ -4,14 +4,16 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext"; // Import the auth context
 
 export default function HomePage() {
   const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState(null); // Assuming user state is managed elsewhere
+  const { user, loading: authLoading } = useAuth(); // Get user from auth context
   const router = useRouter();
 
   const handleGetStarted = () => {
-    // This is a placeholder for actual authentication logic
+    console.log("Current user:", user); // This will now show the actual user
+    // Use the actual user from auth context
     if (user) {
       router.push("/dashboard");
     } else {
@@ -19,8 +21,8 @@ export default function HomePage() {
     }
   };
 
-  if (loading) {
-    // Retaining the loader but with a more neutral background
+  // Show loading if auth is still loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5]">
         <motion.div
@@ -177,7 +179,7 @@ export default function HomePage() {
               transition={{ type: "spring", stiffness: 300 }}
             >
               <span className="flex items-center gap-2">
-                Get Started
+                {user ? "Go to Dashboard" : "Get Started"}
                 <svg
                   className="w-5 h-5 transition-transform group-hover:translate-x-1"
                   fill="none"
@@ -200,7 +202,9 @@ export default function HomePage() {
             variants={itemVariants}
           >
             <p className="text-xs sm:text-sm text-gray-600">
-              Be among the first to experience seamless crowdshipping
+              {user
+                ? "Welcome back! Access your dashboard to continue."
+                : "Be among the first to experience seamless crowdshipping"}
             </p>
           </motion.div>
         </motion.div>
