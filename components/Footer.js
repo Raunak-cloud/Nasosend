@@ -11,11 +11,10 @@ const Footer = () => {
           <div className="lg:col-span-2">
             <div className="flex items-center mb-4">
               <Image
-                src="/nasosend.jpg"
+                src="/nasosend.png"
                 alt="Nasosend Logo"
-                width={48}
-                height={48}
-                className="mr-3"
+                width={88}
+                height={68}
               />
               <h3 className="text-2xl font-bold">Nasosend</h3>
             </div>

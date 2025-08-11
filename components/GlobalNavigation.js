@@ -475,9 +475,8 @@ export default function GlobalNavigation() {
                 <Image
                   src="/nasosend.png"
                   alt="Nasosend Logo"
-                  width={95}
+                  width={90}
                   height={60}
-                  className="w-auto transition-transform group-hover:scale-105"
                   priority
                 />
               </div>
