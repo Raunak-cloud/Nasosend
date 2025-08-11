@@ -1,4 +1,6 @@
+// `use client` is used to indicate that this component should be rendered on the client side.
 "use client";
+
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -16,11 +18,61 @@ import {
   Gift,
 } from "lucide-react";
 
+// A single, reusable component for rendering an icon with a background.
+const IconContainer = ({ children, bgColor, iconColor }) => (
+  <div
+    className="w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+    style={{ backgroundColor: bgColor, color: iconColor }}
+  >
+    {children}
+  </div>
+);
+
+// A reusable component for rendering a single step.
+const StepCard = ({
+  title,
+  description,
+  details,
+  stepNumber,
+  stepIndicatorColor,
+}) => (
+  <div
+    className="rounded-2xl p-6 shadow-lg transition-shadow duration-300 ease-in-out hover:shadow-xl"
+    style={{ backgroundColor: "#FFFFFF" }}
+  >
+    <div className="flex items-center gap-4 mb-4">
+      <span
+        className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-white font-bold text-lg"
+        style={{ backgroundColor: stepIndicatorColor }}
+      >
+        {stepNumber}
+      </span>
+      <h3
+        className="text-xl md:text-2xl font-bold"
+        style={{ color: "#2E2E2E" }}
+      >
+        {title}
+      </h3>
+    </div>
+    <p className="text-gray-600 mb-4">{description}</p>
+    {details && (
+      <ul className="space-y-2">
+        {details.map((detail, i) => (
+          <li key={i} className="text-sm text-gray-500 flex items-center">
+            <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
+            {detail}
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+);
+
 const HowItWorks = () => {
   const [activeTab, setActiveTab] = useState("sender");
   const router = useRouter();
 
-  // A more professional, globally defined color palette
+  // The professional, globally defined color palette
   const colors = {
     primaryRed: "#DC143C",
     primaryRedHover: "#C00A2C",
@@ -38,7 +90,6 @@ const HowItWorks = () => {
 
   const senderSteps = [
     {
-      icon: <Package className="w-8 h-8" />,
       title: "Post Your Item",
       description:
         "Create a listing with item details, pickup location in Australia, and delivery address in Nepal.",
@@ -49,7 +100,6 @@ const HowItWorks = () => {
       ],
     },
     {
-      icon: <Users className="w-8 h-8" />,
       title: "Connect with Travelers",
       description:
         "Browse verified travelers heading to Nepal or wait for them to contact you.",
@@ -60,23 +110,19 @@ const HowItWorks = () => {
       ],
     },
     {
-      icon: <CreditCard className="w-8 h-8" />,
       title: "Buy Connection Tokens",
       description:
-        "Purchase tokens to connect with multiple travelers. Starting from just $10 AUD for 5 connections.",
+        "Purchase tokens to connect with multiple travelers, starting from just $10 AUD for 5 connections.",
       details: [
         "Starter Pack: 5 tokens for $10",
-        "Popular Pack: 15 tokens for $25",
-        "Premium Pack: 30 tokens for $45",
         "100% refund if no matches found",
-        "Tokens valid for 30 days to 1 year",
+        "Tokens valid for up to 1 year",
       ],
     },
     {
-      icon: <CheckCircle className="w-8 h-8" />,
       title: "Track & Receive",
       description:
-        "Monitor your package journey and confirm delivery in Nepal.",
+        "Monitor your package's journey and confirm delivery in Nepal.",
       details: [
         "Real-time tracking",
         "Photo confirmations",
@@ -87,10 +133,9 @@ const HowItWorks = () => {
 
   const travelerSteps = [
     {
-      icon: <Plane className="w-8 h-8" />,
       title: "List Your Trip",
       description:
-        "Add your travel details from Australia to Nepal with available space.",
+        "Add your travel details from Australia to Nepal with available baggage space.",
       details: [
         "Flight dates and times",
         "Baggage allowance",
@@ -98,7 +143,6 @@ const HowItWorks = () => {
       ],
     },
     {
-      icon: <Package className="w-8 h-8" />,
       title: "Accept Requests",
       description:
         "Browse item requests or receive direct offers from senders.",
@@ -109,46 +153,20 @@ const HowItWorks = () => {
       ],
     },
     {
-      icon: <MapPin className="w-8 h-8" />,
       title: "Pickup & Transport",
       description:
         "Collect the item in Australia and safely transport it to Nepal.",
       details: ["Verify item condition", "Secure packaging", "Safe transport"],
     },
     {
-      icon: <DollarSign className="w-8 h-8" />,
       title: "Deliver & Earn 100%",
       description:
-        "Complete delivery in Nepal and keep 100% of agreed payment.",
+        "Complete delivery in Nepal and keep 100% of the agreed payment.",
       details: [
         "Zero commission fees",
         "Direct payment from sender",
         "Get paid instantly",
       ],
-    },
-  ];
-
-  const benefits = [
-    {
-      icon: <Clock className="w-6 h-6" />,
-      title: "Faster Delivery",
-      description: "Get your items delivered in days, not weeks",
-    },
-    {
-      icon: <DollarSign className="w-6 h-6" />,
-      title: "Zero Commission",
-      description:
-        "Travelers keep 100% of earnings, affordable token system for senders",
-    },
-    {
-      icon: <Shield className="w-6 h-6" />,
-      title: "Secure & Insured",
-      description: "Every transaction is protected and insured",
-    },
-    {
-      icon: <Users className="w-6 h-6" />,
-      title: "Trusted Community",
-      description: "Verified users with ratings and reviews",
     },
   ];
 
@@ -158,7 +176,8 @@ const HowItWorks = () => {
       tokens: 5,
       price: 10,
       description: "Perfect for occasional senders",
-      color: "blue",
+      color: colors.primaryBlue,
+      validity: "30 days",
     },
     {
       name: "Popular Pack",
@@ -166,8 +185,9 @@ const HowItWorks = () => {
       price: 25,
       originalPrice: 30,
       description: "Best value for regular users",
-      color: "red",
+      color: colors.primaryRed,
       badge: "Most Popular",
+      validity: "3 months",
     },
     {
       name: "Premium Pack",
@@ -175,57 +195,69 @@ const HowItWorks = () => {
       price: 45,
       originalPrice: 60,
       description: "For frequent senders",
-      color: "blue",
+      color: colors.primaryBlue,
       badge: "Best Value",
+      validity: "1 year",
     },
   ];
+
+  const benefits = [
+    {
+      icon: <Clock />,
+      title: "Faster Delivery",
+      description: "Get your items delivered in days, not weeks",
+    },
+    {
+      icon: <DollarSign />,
+      title: "Zero Commission",
+      description:
+        "Travelers keep 100% of earnings, affordable token system for senders",
+    },
+    {
+      icon: <Shield />,
+      title: "Secure & Insured",
+      description: "Every transaction is protected and insured",
+    },
+    {
+      icon: <Users />,
+      title: "Trusted Community",
+      description: "Verified users with ratings and reviews",
+    },
+  ];
+
+  // CTA button styles for reusability and hover effects
+  const ctaButtonClasses = (bgColor, hoverColor) =>
+    `text-white font-bold py-3 px-6 md:py-4 md:px-8 rounded-full transition-colors duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-lg ${
+      bgColor === colors.primaryRed
+        ? `bg-red-600 hover:bg-red-700`
+        : `bg-blue-800 hover:bg-blue-900`
+    }`;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.lightGray }}>
       {/* Hero Section */}
       <div
-        className="text-white py-20"
+        className="text-white py-12 md:py-24"
         style={{
           background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
         }}
       >
-        <div className="max-w-6xl mx-auto px-6 text-center">
-          <h1 className="text-5xl font-bold mb-6">How Nasosend Works</h1>
-          <p className="text-xl mb-8 max-w-3xl mx-auto">
-            Connect with travelers to send items between Australia and Nepal
-            quickly, safely, and affordably through our crowdshipping platform.
+        <div className="max-w-6xl mx-auto px-4 md:px-6 text-center">
+          <h1 className="text-3xl md:text-5xl font-extrabold mb-2 md:mb-4">
+            How Nasosend Works
+          </h1>
+          <p className="text-base md:text-xl mb-4 md:mb-8 max-w-3xl mx-auto opacity-90">
+            Connect with travelers to send items between Australia 🇦🇺 and Nepal
+            🇳🇵 quickly, safely, and affordably.
           </p>
-          <div className="flex items-center justify-center space-x-4 text-lg">
-            <div className="flex items-center gap-2">
-              <span>🇦🇺</span>
-              <span>Australia</span>
-            </div>
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16l-4-4m0 0l4-4m-4 4h18m0 0l-4-4m4 4l-4 4"
-              />
-            </svg>
-            <div className="flex items-center gap-2">
-              <span>🇳🇵</span>
-              <span>Nepal</span>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="flex justify-center mb-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-12 md:py-16">
+        {/* Tab Navigation */}
+        <div className="flex justify-center mb-10 md:mb-16">
           <div
-            className="rounded-full p-1 shadow-inner border inline-flex"
+            className="rounded-full p-1 shadow-inner border inline-flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2"
             style={{
               backgroundColor: colors.white,
               borderColor: colors.borderGray,
@@ -233,10 +265,10 @@ const HowItWorks = () => {
           >
             <button
               onClick={() => setActiveTab("sender")}
-              className={`px-6 py-3 rounded-full font-semibold transition-all flex items-center gap-2 ${
+              className={`px-6 py-3 rounded-full font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
                 activeTab === "sender"
                   ? "text-white shadow-md"
-                  : "text-gray-600 hover:text-[#DC143C]"
+                  : "text-gray-600 hover:text-red-500"
               }`}
               style={{
                 backgroundColor:
@@ -248,10 +280,10 @@ const HowItWorks = () => {
             </button>
             <button
               onClick={() => setActiveTab("traveler")}
-              className={`px-6 py-3 rounded-full font-semibold transition-all flex items-center gap-2 ${
+              className={`px-6 py-3 rounded-full font-semibold transition-all duration-300 flex items-center justify-center gap-2 ${
                 activeTab === "traveler"
                   ? "text-white shadow-md"
-                  : "text-gray-600 hover:text-[#003366]"
+                  : "text-gray-600 hover:text-blue-700"
               }`}
               style={{
                 backgroundColor:
@@ -265,61 +297,21 @@ const HowItWorks = () => {
         </div>
 
         {/* Steps Section */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-16">
           {(activeTab === "sender" ? senderSteps : travelerSteps).map(
             (step, index) => (
-              <div
+              <StepCard
                 key={index}
-                className="rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow"
-                style={{ backgroundColor: colors.white }}
-              >
-                <div
-                  className={`w-16 h-16 rounded-full flex items-center justify-center mb-4`}
-                  style={{
-                    backgroundColor:
-                      activeTab === "sender"
-                        ? colors.lighterRed
-                        : colors.lighterBlue,
-                    color:
-                      activeTab === "sender"
-                        ? colors.primaryRed
-                        : colors.primaryBlue,
-                  }}
-                >
-                  {step.icon}
-                </div>
-                <div className="flex items-center mb-3">
-                  <span
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold mr-3`}
-                    style={{
-                      backgroundColor:
-                        activeTab === "sender"
-                          ? colors.primaryRed
-                          : colors.primaryBlue,
-                    }}
-                  >
-                    {index + 1}
-                  </span>
-                  <h3
-                    className="text-xl font-bold"
-                    style={{ color: colors.darkGray }}
-                  >
-                    {step.title}
-                  </h3>
-                </div>
-                <p className="text-gray-600 mb-4">{step.description}</p>
-                <ul className="space-y-1">
-                  {step.details.map((detail, i) => (
-                    <li
-                      key={i}
-                      className="text-sm text-gray-500 flex items-center"
-                    >
-                      <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
-                      {detail}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                title={step.title}
+                description={step.description}
+                details={step.details}
+                stepNumber={index + 1}
+                stepIndicatorColor={
+                  activeTab === "sender"
+                    ? colors.primaryRed
+                    : colors.primaryBlue
+                }
+              />
             )
           )}
         </div>
@@ -327,14 +319,14 @@ const HowItWorks = () => {
         {/* Token Packages Section - Only for Sender Tab */}
         {activeTab === "sender" && (
           <div
-            className="rounded-2xl p-8 mb-16"
+            className="rounded-2xl p-6 md:p-8 mb-16 shadow-lg"
             style={{
               background: `linear-gradient(to bottom right, ${colors.lighterRed}, ${colors.lighterBlue})`,
             }}
           >
             <div className="text-center mb-8">
               <h2
-                className="text-3xl font-bold text-gray-900 mb-4"
+                className="text-3xl font-bold text-gray-900 mb-3"
                 style={{ color: colors.darkGray }}
               >
                 Choose Your Connection Package
@@ -345,34 +337,26 @@ const HowItWorks = () => {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
               {tokenPackages.map((pkg, index) => (
                 <div
                   key={index}
-                  className={`relative rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all border-2`}
+                  className={`relative rounded-2xl p-6 shadow-lg transition-all duration-300 ease-in-out hover:shadow-xl border-2 ${
+                    pkg.badge ? "transform scale-105" : ""
+                  }`}
                   style={{
                     backgroundColor: colors.white,
-                    borderColor: pkg.badge
-                      ? pkg.color === "blue"
-                        ? colors.primaryBlue
-                        : colors.primaryRed
-                      : colors.borderGray,
+                    borderColor: pkg.badge ? pkg.color : colors.borderGray,
                   }}
                 >
                   {pkg.badge && (
                     <div
                       className={`absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-1 text-xs font-bold rounded-full text-white`}
-                      style={{
-                        backgroundColor:
-                          pkg.color === "blue"
-                            ? colors.primaryBlue
-                            : colors.primaryRed,
-                      }}
+                      style={{ backgroundColor: pkg.color }}
                     >
                       {pkg.badge}
                     </div>
                   )}
-
                   <div className="text-center">
                     <h3
                       className="text-xl font-bold text-gray-900 mb-2"
@@ -383,7 +367,6 @@ const HowItWorks = () => {
                     <p className="text-gray-600 text-sm mb-4">
                       {pkg.description}
                     </p>
-
                     <div className="mb-4">
                       <div
                         className="text-3xl font-bold text-gray-900"
@@ -396,7 +379,6 @@ const HowItWorks = () => {
                         </span>
                       </div>
                     </div>
-
                     <div className="text-center mb-4">
                       <div className="flex items-center justify-center gap-2">
                         {pkg.originalPrice && (
@@ -417,13 +399,12 @@ const HowItWorks = () => {
                       {pkg.originalPrice && (
                         <p
                           className="text-sm font-medium"
-                          style={{ color: colors.primaryBlue }}
+                          style={{ color: pkg.color }}
                         >
                           Save ${pkg.originalPrice - pkg.price}!
                         </p>
                       )}
                     </div>
-
                     <div className="space-y-2 text-sm text-gray-600">
                       <div className="flex items-center justify-center">
                         <Shield
@@ -437,162 +418,29 @@ const HowItWorks = () => {
                           className="w-4 h-4 mr-2"
                           style={{ color: colors.primaryRed }}
                         />
-                        {pkg.tokens <= 5
-                          ? "30 days"
-                          : pkg.tokens <= 15
-                          ? "3 months"
-                          : "1 year"}{" "}
-                        validity
+                        {pkg.validity} validity
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-
-            <div className="text-center mt-8">
-              <div className="grid md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <Shield
-                    className="w-5 h-5"
-                    style={{ color: colors.primaryBlue }}
-                  />
-                  <span>Secure Payment</span>
-                </div>
-                <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <Clock
-                    className="w-5 h-5"
-                    style={{ color: colors.primaryRed }}
-                  />
-                  <span>Instant Activation</span>
-                </div>
-                <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <Gift
-                    className="w-5 h-5"
-                    style={{ color: colors.primaryBlue }}
-                  />
-                  <span>Extended Validity</span>
-                </div>
-                <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <Star className="w-5 h-5" style={{ color: colors.gold }} />
-                  <span>Money Back Guarantee</span>
-                </div>
-              </div>
-            </div>
           </div>
         )}
-
-        {/* Process Flow */}
-        <div
-          className="rounded-2xl p-8 shadow-lg mb-16"
-          style={{ backgroundColor: colors.white }}
-        >
-          <h2
-            className="text-3xl font-bold text-center mb-8"
-            style={{ color: colors.darkGray }}
-          >
-            The Complete Process
-          </h2>
-          <div className="flex flex-col lg:flex-row items-center justify-between space-y-8 lg:space-y-0 lg:space-x-8">
-            <div className="flex-1 text-center">
-              <div
-                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ backgroundColor: colors.lighterBlue }}
-              >
-                <Package
-                  className="w-10 h-10"
-                  style={{ color: colors.primaryBlue }}
-                />
-              </div>
-              <h3
-                className="text-lg font-semibold mb-2"
-                style={{ color: colors.darkGray }}
-              >
-                Item Posted
-              </h3>
-              <p className="text-gray-600">
-                Sender creates listing with details and budget
-              </p>
-            </div>
-            <ArrowRight className="w-8 h-8 text-gray-400 hidden lg:block" />
-            <div className="flex-1 text-center">
-              <div
-                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ backgroundColor: colors.lighterRed }}
-              >
-                <Users
-                  className="w-10 h-10"
-                  style={{ color: colors.primaryRed }}
-                />
-              </div>
-              <h3
-                className="text-lg font-semibold mb-2"
-                style={{ color: colors.darkGray }}
-              >
-                Match Made
-              </h3>
-              <p className="text-gray-600">
-                Traveler accepts request, direct payment arranged
-              </p>
-            </div>
-            <ArrowRight className="w-8 h-8 text-gray-400 hidden lg:block" />
-            <div className="flex-1 text-center">
-              <div
-                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ backgroundColor: colors.lighterBlue }}
-              >
-                <Plane
-                  className="w-10 h-10"
-                  style={{ color: colors.primaryBlue }}
-                />
-              </div>
-              <h3
-                className="text-lg font-semibold mb-2"
-                style={{ color: colors.darkGray }}
-              >
-                In Transit
-              </h3>
-              <p className="text-gray-600">
-                Item picked up and traveling to Nepal
-              </p>
-            </div>
-            <ArrowRight className="w-8 h-8 text-gray-400 hidden lg:block" />
-            <div className="flex-1 text-center">
-              <div
-                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ backgroundColor: colors.lighterRed }}
-              >
-                <CheckCircle
-                  className="w-10 h-10"
-                  style={{ color: colors.primaryRed }}
-                />
-              </div>
-              <h3
-                className="text-lg font-semibold mb-2"
-                style={{ color: colors.darkGray }}
-              >
-                Delivered
-              </h3>
-              <p className="text-gray-600">
-                Item delivered, traveler paid directly by sender
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* Benefits Grid */}
         <div className="mb-16">
           <h2
-            className="text-3xl font-bold text-center mb-12"
+            className="text-3xl md:text-4xl font-bold text-center mb-12"
             style={{ color: colors.darkGray }}
           >
             Why Choose Nasosend?
           </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {benefits.map((benefit, index) => (
               <div
                 key={index}
-                className="rounded-lg p-6 text-center shadow-md hover:shadow-lg transition-shadow"
+                className="rounded-lg p-6 text-center shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out"
                 style={{ backgroundColor: colors.white }}
               >
                 <div
@@ -601,7 +449,7 @@ const HowItWorks = () => {
                     background: `linear-gradient(to bottom right, ${colors.primaryBlue}, ${colors.primaryRed})`,
                   }}
                 >
-                  {benefit.icon}
+                  {React.cloneElement(benefit.icon, { className: "w-6 h-6" })}
                 </div>
                 <h3
                   className="text-lg font-semibold mb-2"
@@ -615,136 +463,33 @@ const HowItWorks = () => {
           </div>
         </div>
 
-        {/* Safety & Security */}
-        <div
-          className="rounded-2xl p-8 text-white mb-16"
-          style={{
-            background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
-          }}
-        >
-          <div className="max-w-4xl mx-auto text-center">
-            <Shield className="w-16 h-16 mx-auto mb-6" />
-            <h2 className="text-3xl font-bold mb-6">
-              Your Security is Our Priority
-            </h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div>
-                <h3 className="text-xl font-semibold mb-3">Verified Users</h3>
-                <p>
-                  All travelers and senders go through identity verification and
-                  background checks.
-                </p>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold mb-3">Direct Payments</h3>
-                <p>
-                  Senders pay travelers directly after successful delivery
-                  confirmation.
-                </p>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold mb-3">
-                  Money-Back Guarantee
-                </h3>
-                <p>
-                  Full refund of token purchase if no travelers are found within
-                  the validity period.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Testimonials */}
-        <div className="mb-16">
-          <h2
-            className="text-3xl font-bold text-center mb-12"
-            style={{ color: colors.darkGray }}
-          >
-            What Our Users Say
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Priya S.",
-                role: "Sender from Sydney",
-                content:
-                  "Sent gifts to my family in Kathmandu in just 5 days! The token system is so affordable compared to courier services.",
-                rating: 5,
-              },
-              {
-                name: "Raj K.",
-                role: "Frequent Traveler",
-                content:
-                  "Love that there's no commission! I keep 100% of what senders pay me. Perfect way to earn while traveling.",
-                rating: 5,
-              },
-              {
-                name: "Anita M.",
-                role: "Student in Melbourne",
-                content:
-                  "Just $10 for 5 connections! So much cheaper than courier services. Got my refund when no match was found first time.",
-                rating: 5,
-              },
-            ].map((testimonial, index) => (
-              <div
-                key={index}
-                className="rounded-lg p-6 shadow-md"
-                style={{ backgroundColor: colors.white }}
-              >
-                <div className="flex items-center mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="w-5 h-5 fill-current"
-                      style={{ color: colors.gold }}
-                    />
-                  ))}
-                </div>
-                <p className="text-gray-600 mb-4">"{testimonial.content}"</p>
-                <div>
-                  <p
-                    className="font-semibold"
-                    style={{ color: colors.darkGray }}
-                  >
-                    {testimonial.name}
-                  </p>
-                  <p className="text-sm text-gray-500">{testimonial.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* CTA Section */}
         <div className="text-center">
           <h2
-            className="text-3xl font-bold mb-6"
+            className="text-3xl md:text-4xl font-bold mb-6"
             style={{ color: colors.darkGray }}
           >
             Ready to Get Started?
           </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            Be among the first to experience seamless crowdshipping
+          <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Be among the first to experience seamless crowdshipping.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => router.push("/dashboard")}
-              className="text-white font-bold py-4 px-8 rounded-lg transition-colors"
-              style={{
-                backgroundColor: colors.primaryRed,
-                hoverBackgroundColor: colors.primaryRedHover,
-              }}
+              className={ctaButtonClasses(
+                colors.primaryRed,
+                colors.primaryRedHover
+              )}
             >
               Send an Item
             </button>
             <button
               onClick={() => router.push("/dashboard")}
-              className="text-white font-bold py-4 px-8 rounded-lg transition-colors"
-              style={{
-                backgroundColor: colors.primaryBlue,
-                hoverBackgroundColor: colors.primaryBlueHover,
-              }}
+              className={ctaButtonClasses(
+                colors.primaryBlue,
+                colors.primaryBlueHover
+              )}
             >
               Become a Traveler
             </button>

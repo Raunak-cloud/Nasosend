@@ -32,42 +32,6 @@ const BlogLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
-      {/* Compact Header */}
-      <header className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white py-8 sm:py-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-8">
-          <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-32 -translate-y-32"></div>
-          <div className="absolute bottom-0 right-0 w-64 h-64 bg-white rounded-full translate-x-32 translate-y-32"></div>
-        </div>
-        <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 relative z-10">
-          <div className="text-center">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-              Nasosend Blog
-            </h1>
-            <p className="text-sm sm:text-base lg:text-lg max-w-3xl mx-auto leading-relaxed text-blue-100 font-medium px-4">
-              Discover expert guides, cultural insights, and professional tips
-              for connecting Australia and Nepal through our trusted
-              crowdshipping platform.
-            </p>
-          </div>
-        </div>
-      </header>
-
-      {/* Compact Navigation Breadcrumb */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-3">
-          <nav className="flex items-center space-x-2 text-xs sm:text-sm font-medium">
-            <Link
-              href="/"
-              className="text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              Home
-            </Link>
-            <span className="text-gray-400">→</span>
-            <span className="text-gray-700 font-semibold">Blog</span>
-          </nav>
-        </div>
-      </div>
-
       <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-8">
         <div className="grid lg:grid-cols-4 gap-6 lg:gap-8">
           {/* Main Content */}

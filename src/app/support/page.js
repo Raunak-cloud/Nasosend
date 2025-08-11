@@ -160,34 +160,8 @@ const SupportPage = () => {
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.lightGray }}>
       {/* Compact Header */}
-      <div
-        style={{
-          background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
-        }}
-        className="text-white"
-      >
-        <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-8">
-          <div className="flex items-center mb-3">
-            <button
-              onClick={() => window.history.back()}
-              className="mr-3 p-1.5 rounded-lg transition-colors"
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-              }}
-            >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-              Support Center
-            </h1>
-          </div>
-          <p className="text-sm sm:text-base lg:text-lg text-white max-w-3xl">
-            Get help with your Nasosend experience. Our team is here to assist
-            with matching, payments, verification, and any other questions you
-            might have.
-          </p>
-        </div>
-      </div>
+
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-8"></div>
 
       <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-8">
         {/* Compact Quick Actions */}
