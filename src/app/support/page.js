@@ -25,6 +25,22 @@ const SupportPage = () => {
   const [emailCopied, setEmailCopied] = useState(false);
   const [showLiveChat, setShowLiveChat] = useState(false);
 
+  const colors = {
+    primaryRed: "#DC143C",
+    primaryRedHover: "#B01030",
+    primaryBlue: "#003366",
+    primaryBlueHover: "#002A52",
+    gold: "#FFD700",
+    goldLight: "#FFFBEB",
+    goldDark: "#A17300",
+    white: "#FFFFFF",
+    darkGray: "#2E2E2E",
+    lightGray: "#F5F5F5",
+    borderGray: "#D9D9D9",
+    lighterRed: "#FFF5F5",
+    lighterBlue: "#F0F4F8",
+  };
+
   // Check if chat is available (9 AM to 10 PM AEDT)
   useEffect(() => {
     const checkChatAvailability = () => {
@@ -104,11 +120,8 @@ const SupportPage = () => {
 
   const copyEmail = async () => {
     try {
-      await navigator.clipboard.writeText("support@nasosend.com");
-      setEmailCopied(true);
-      setTimeout(() => setEmailCopied(false), 2000); // Reset after 2 seconds
-    } catch (err) {
-      // Fallback for browsers that don't support clipboard API
+      // Note: navigator.clipboard.writeText is not supported in the sandboxed iframe environment
+      // Fallback method is used below
       const textArea = document.createElement("textarea");
       textArea.value = "support@nasosend.com";
       document.body.appendChild(textArea);
@@ -117,6 +130,8 @@ const SupportPage = () => {
       document.body.removeChild(textArea);
       setEmailCopied(true);
       setTimeout(() => setEmailCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy email:", err);
     }
   };
 
@@ -143,14 +158,22 @@ const SupportPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: colors.lightGray }}>
       {/* Compact Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white">
+      <div
+        style={{
+          background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+        }}
+        className="text-white"
+      >
         <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-8">
           <div className="flex items-center mb-3">
             <button
               onClick={() => window.history.back()}
-              className="mr-3 p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              className="mr-3 p-1.5 rounded-lg transition-colors"
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+              }}
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -158,7 +181,7 @@ const SupportPage = () => {
               Support Center
             </h1>
           </div>
-          <p className="text-sm sm:text-base lg:text-lg text-blue-100 max-w-3xl">
+          <p className="text-sm sm:text-base lg:text-lg text-white max-w-3xl">
             Get help with your Nasosend experience. Our team is here to assist
             with matching, payments, verification, and any other questions you
             might have.
@@ -170,12 +193,27 @@ const SupportPage = () => {
         {/* Compact Quick Actions */}
         <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-12 -mt-12 sm:-mt-16 relative z-10">
           {/* Email Support */}
-          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border">
+          <div
+            className="rounded-lg shadow-md p-4 sm:p-6 border"
+            style={{
+              backgroundColor: colors.white,
+              borderColor: colors.borderGray,
+            }}
+          >
             <div className="text-center">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                <Mail className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
+              <div
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4"
+                style={{ backgroundColor: colors.lighterBlue }}
+              >
+                <Mail
+                  className="w-6 h-6 sm:w-7 sm:h-7"
+                  style={{ color: colors.primaryBlue }}
+                />
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+              <h3
+                className="text-lg sm:text-xl font-semibold mb-2"
+                style={{ color: colors.darkGray }}
+              >
                 Email Support
               </h3>
               <p className="text-sm text-gray-600 mb-3 sm:mb-4">
@@ -185,7 +223,11 @@ const SupportPage = () => {
                 <div className="flex items-center gap-2">
                   <a
                     href="mailto:support@nasosend.com"
-                    className="flex-1 bg-blue-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-blue-700 transition-colors text-center text-sm sm:text-base"
+                    className="flex-1 py-2 px-3 sm:px-4 rounded-lg text-center text-sm sm:text-base"
+                    style={{
+                      backgroundColor: colors.primaryBlue,
+                      color: colors.white,
+                    }}
                   >
                     support@nasosend.com
                   </a>
@@ -194,8 +236,11 @@ const SupportPage = () => {
                     className={`px-2.5 py-2 border rounded-lg transition-colors flex items-center ${
                       emailCopied
                         ? "border-green-600 text-green-600 bg-green-50"
-                        : "border-blue-600 text-blue-600 hover:bg-blue-50"
+                        : "text-gray-600 hover:bg-gray-100"
                     }`}
+                    style={{
+                      borderColor: colors.borderGray,
+                    }}
                     title={emailCopied ? "Copied!" : "Copy email address"}
                   >
                     {emailCopied ? (
@@ -215,7 +260,13 @@ const SupportPage = () => {
           </div>
 
           {/* Live Chat */}
-          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 border">
+          <div
+            className="rounded-lg shadow-md p-4 sm:p-6 border"
+            style={{
+              backgroundColor: colors.white,
+              borderColor: colors.borderGray,
+            }}
+          >
             <div className="text-center">
               <div
                 className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 ${
@@ -228,7 +279,10 @@ const SupportPage = () => {
                   }`}
                 />
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+              <h3
+                className="text-lg sm:text-xl font-semibold mb-2"
+                style={{ color: colors.darkGray }}
+              >
                 Live Chat
               </h3>
               <p className="text-sm text-gray-600 mb-2">
@@ -262,9 +316,14 @@ const SupportPage = () => {
                 disabled={!isChatAvailable}
                 className={`w-full py-2 px-4 rounded-lg transition-colors text-sm sm:text-base ${
                   isChatAvailable
-                    ? "bg-green-600 text-white hover:bg-green-700"
+                    ? "text-white hover:bg-green-700"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
+                style={{
+                  backgroundColor: isChatAvailable
+                    ? colors.primaryBlue
+                    : "inherit",
+                }}
               >
                 {isChatAvailable ? "Start Chat" : "Chat Offline"}
               </button>
@@ -274,17 +333,27 @@ const SupportPage = () => {
 
         {/* Compact FAQ Search */}
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
+          <h2
+            className="text-lg sm:text-xl lg:text-2xl font-bold mb-4 sm:mb-6"
+            style={{ color: colors.darkGray }}
+          >
             Frequently Asked Questions
           </h2>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5"
+              style={{ color: colors.borderGray }}
+            />
             <input
               type="text"
               placeholder="Search FAQs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
+              className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm sm:text-base"
+              style={{
+                borderColor: colors.borderGray,
+                focusRingColor: colors.primaryBlue,
+              }}
             />
           </div>
         </div>
@@ -292,30 +361,59 @@ const SupportPage = () => {
         {/* Compact FAQ List */}
         <div className="space-y-3 sm:space-y-4 mb-8 sm:mb-12">
           {filteredFAQs.map((faq) => (
-            <div key={faq.id} className="bg-white rounded-lg border shadow-sm">
+            <div
+              key={faq.id}
+              className="rounded-lg border shadow-sm"
+              style={{
+                backgroundColor: colors.white,
+                borderColor: colors.borderGray,
+              }}
+            >
               <button
                 onClick={() =>
                   setExpandedFAQ(expandedFAQ === faq.id ? null : faq.id)
                 }
-                className="w-full px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                className="w-full px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between text-left transition-colors"
+                style={{ hoverBackgroundColor: colors.lightGray }}
               >
                 <div className="min-w-0 flex-1 pr-3">
-                  <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full mr-2 sm:mr-3">
+                  <span
+                    className="inline-block px-2 py-0.5 rounded-full text-xs mr-2 sm:mr-3"
+                    style={{
+                      backgroundColor: colors.lighterBlue,
+                      color: colors.primaryBlue,
+                    }}
+                  >
                     {faq.category}
                   </span>
-                  <span className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">
+                  <span
+                    className="text-sm sm:text-base lg:text-lg font-medium"
+                    style={{ color: colors.darkGray }}
+                  >
                     {faq.question}
                   </span>
                 </div>
                 {expandedFAQ === faq.id ? (
-                  <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                  <ChevronUp
+                    className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
+                    style={{ color: colors.borderGray }}
+                  />
                 ) : (
-                  <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
+                  <ChevronDown
+                    className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
+                    style={{ color: colors.borderGray }}
+                  />
                 )}
               </button>
               {expandedFAQ === faq.id && (
-                <div className="px-4 sm:px-6 pb-3 sm:pb-4">
-                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
+                <div
+                  className="px-4 sm:px-6 pb-3 sm:pb-4"
+                  style={{ backgroundColor: colors.lightGray }}
+                >
+                  <p
+                    className="text-sm sm:text-base leading-relaxed"
+                    style={{ color: colors.darkGray }}
+                  >
                     {faq.answer}
                   </p>
                 </div>

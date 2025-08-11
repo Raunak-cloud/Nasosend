@@ -452,7 +452,7 @@ export default function SenderDashboardPage() {
                 </div>
                 <div>
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold">
-                    Matching Tokens
+                    Tokens
                   </h2>
                   <p
                     className="opacity-90 text-xs sm:text-sm"
