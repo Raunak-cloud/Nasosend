@@ -3,6 +3,22 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { doc, updateDoc } from "firebase/firestore"; // Import doc and updateDoc
+import { db } from "@/lib/firebase";
+import {
+  Package,
+  Plane,
+  Users,
+  Shield,
+  CheckCircle,
+  ArrowRight,
+  MapPin,
+  Clock,
+  DollarSign,
+  Star,
+  CreditCard,
+  Gift,
+} from "lucide-react";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -10,6 +26,23 @@ export default function DashboardPage() {
   const [selectedRole, setSelectedRole] = useState("");
   const [isNavigating, setIsNavigating] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  // A more professional, globally defined color palette
+  const colors = {
+    primaryRed: "#DC143C",
+    primaryRedHover: "#B01030",
+    primaryBlue: "#003366",
+    primaryBlueHover: "#002A52",
+    gold: "#FFD700",
+    goldLight: "#FFFBEB",
+    goldDark: "#A17300",
+    white: "#FFFFFF",
+    darkGray: "#2E2E2E",
+    lightGray: "#F5F5F5",
+    borderGray: "#D9D9D9",
+    lighterRed: "#FFF5F5",
+    lighterBlue: "#F0F4F8",
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -21,13 +54,25 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  const handleRoleSelection = (role) => {
+  const handleRoleSelection = async (role) => {
     setSelectedRole(role);
     setIsNavigating(true);
 
+    // Save preference to database if user exists
+    if (user) {
+      try {
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+          lastActiveRole: role,
+          updatedAt: new Date(),
+        });
+      } catch (error) {
+        console.error("Error updating preference:", error);
+      }
+    }
+
     // Navigate based on role selection
     if (role === "traveler") {
-      // Check if traveler is verified
       if (userProfile?.verified) {
         router.push("/traveler/dashboard");
       } else {
@@ -42,18 +87,35 @@ export default function DashboardPage() {
     }
   };
 
-  // If still loading or no user, don't render anything (handled by AuthWrapper)
   if (loading || !user) {
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{ backgroundColor: colors.lightGray }}
+    >
       {/* Compact Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-400/15 to-transparent rounded-full -mr-32 -mt-32"></div>
-        <div className="absolute bottom-0 left-0 w-56 h-56 bg-gradient-to-tr from-purple-400/15 to-transparent rounded-full -ml-28 -mb-28"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-gradient-to-r from-green-400/8 to-blue-400/8 rounded-full"></div>
+        <div
+          className="absolute top-0 right-0 w-64 h-64 rounded-full -mr-32 -mt-32 opacity-10"
+          style={{
+            background: `linear-gradient(to bottom left, ${colors.primaryBlue}, transparent)`,
+          }}
+        ></div>
+        <div
+          className="absolute bottom-0 left-0 w-56 h-56 rounded-full -ml-28 -mb-28 opacity-10"
+          style={{
+            background: `linear-gradient(to top right, ${colors.primaryRed}, transparent)`,
+          }}
+        ></div>
+        <div
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full opacity-5"
+          style={{
+            background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+          }}
+        ></div>
       </div>
 
       <div className="relative max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-8">
@@ -64,7 +126,12 @@ export default function DashboardPage() {
           }`}
         >
           <div className="mb-4 sm:mb-6">
-            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl sm:rounded-2xl shadow-md mb-3 sm:mb-4">
+            <div
+              className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl shadow-md mb-3 sm:mb-4"
+              style={{
+                background: `linear-gradient(to bottom right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+              }}
+            >
               <svg
                 className="w-6 h-6 sm:w-8 sm:h-8 text-white"
                 fill="none"
@@ -79,10 +146,16 @@ export default function DashboardPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-indigo-900 bg-clip-text text-transparent mb-2">
+            <h1
+              className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2"
+              style={{ color: colors.primaryBlue }}
+            >
               Welcome back
               {userProfile?.displayName && (
-                <span className="block text-xl sm:text-2xl lg:text-3xl mt-1 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                <span
+                  className="block text-xl sm:text-2xl lg:text-3xl mt-1"
+                  style={{ color: colors.darkGray }}
+                >
                   {userProfile.displayName}!
                 </span>
               )}
@@ -102,17 +175,32 @@ export default function DashboardPage() {
           {/* Compact Sender Card */}
           <div
             onClick={() => !isNavigating && handleRoleSelection("sender")}
-            className={`group relative bg-white rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden border border-gray-100 ${
+            className={`group relative rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden border ${
               isNavigating && selectedRole !== "sender" ? "opacity-50" : ""
             }`}
+            style={{
+              backgroundColor: colors.white,
+              borderColor: colors.borderGray,
+            }}
           >
-            {/* Compact Purple Gradient Header */}
-            <div className="bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 p-4 sm:p-6 text-white relative overflow-hidden">
+            {/* Compact Red Gradient Header */}
+            <div
+              className="p-4 sm:p-6 text-white relative overflow-hidden"
+              style={{
+                background: `linear-gradient(to bottom right, ${colors.primaryRed}, ${colors.primaryRedHover})`,
+              }}
+            >
               <div className="absolute inset-0 bg-black opacity-5"></div>
-              <div className="absolute top-0 right-0 w-20 h-20 bg-white opacity-8 rounded-full -mr-10 -mt-10"></div>
+              <div
+                className="absolute top-0 right-0 w-20 h-20 rounded-full -mr-10 -mt-10"
+                style={{ backgroundColor: colors.white, opacity: 0.08 }}
+              ></div>
 
               <div className="relative">
-                <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl mb-3 sm:mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                <div
+                  className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl mb-3 sm:mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300"
+                  style={{ backgroundColor: `rgba(255, 255, 255, 0.2)` }}
+                >
                   <svg
                     className="w-6 h-6 sm:w-8 sm:h-8 text-white"
                     fill="none"
@@ -130,7 +218,10 @@ export default function DashboardPage() {
                 <h2 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">
                   I Want to Send
                 </h2>
-                <p className="text-white/90 text-sm sm:text-base leading-relaxed">
+                <p
+                  className="text-sm sm:text-base leading-relaxed"
+                  style={{ color: "rgba(255, 255, 255, 0.9)" }}
+                >
                   Connect with verified travelers heading to your destination
                 </p>
               </div>
@@ -140,9 +231,13 @@ export default function DashboardPage() {
             <div className="p-4 sm:p-6">
               <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                 <div className="flex items-start group/item">
-                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform">
+                  <div
+                    className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform"
+                    style={{ backgroundColor: colors.lightGray }}
+                  >
                     <svg
-                      className="w-4 h-4 sm:w-5 sm:h-5 text-white"
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                      style={{ color: colors.primaryBlue }}
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -154,19 +249,26 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1">
+                    <h3
+                      className="font-bold text-sm sm:text-base mb-1"
+                      style={{ color: colors.darkGray }}
+                    >
                       Browse Verified Travelers
                     </h3>
-                    <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
+                    <p className="text-xs sm:text-sm leading-relaxed text-gray-600">
                       All travelers are verified with ID and flight details
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-start group/item">
-                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform">
+                  <div
+                    className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform"
+                    style={{ backgroundColor: colors.lightGray }}
+                  >
                     <svg
-                      className="w-4 h-4 sm:w-5 sm:h-5 text-white"
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                      style={{ color: colors.primaryRed }}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -180,10 +282,13 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1">
+                    <h3
+                      className="font-bold text-sm sm:text-base mb-1"
+                      style={{ color: colors.darkGray }}
+                    >
                       Secure Payments
                     </h3>
-                    <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
+                    <p className="text-xs sm:text-sm leading-relaxed text-gray-600">
                       Safe and transparent payment system
                     </p>
                   </div>
@@ -192,9 +297,18 @@ export default function DashboardPage() {
 
               {/* Compact Verification Status for Senders */}
               {!userProfile?.verified && (
-                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg sm:rounded-xl">
+                <div
+                  className="mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg sm:rounded-xl border"
+                  style={{
+                    backgroundColor: colors.goldLight,
+                    borderColor: colors.gold,
+                  }}
+                >
                   <div className="flex items-start">
-                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center mr-3">
+                    <div
+                      className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3"
+                      style={{ backgroundColor: colors.gold }}
+                    >
                       <svg
                         className="w-4 h-4 sm:w-5 sm:h-5 text-white"
                         fill="currentColor"
@@ -208,10 +322,13 @@ export default function DashboardPage() {
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-amber-900 text-sm sm:text-base mb-1">
+                      <h4
+                        className="font-bold text-sm sm:text-base mb-1"
+                        style={{ color: colors.goldDark }}
+                      >
                         Identity Verification Required
                       </h4>
-                      <p className="text-amber-800 text-xs sm:text-sm leading-relaxed">
+                      <p className="text-xs sm:text-sm leading-relaxed text-gray-600">
                         Verify your identity to send items with confidence
                       </p>
                     </div>
@@ -220,24 +337,42 @@ export default function DashboardPage() {
               )}
 
               {/* Compact Action Button */}
-              <div className="relative overflow-hidden rounded-lg sm:rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 p-0.5 group-hover:from-purple-600 group-hover:to-pink-700 transition-all duration-300">
-                <div className="bg-white rounded-lg sm:rounded-xl px-4 py-3 group-hover:bg-gray-50 transition-colors">
+              <div
+                className="relative overflow-hidden rounded-lg sm:rounded-xl p-0.5 group-hover:from-purple-600 group-hover:to-pink-700 transition-all duration-300"
+                style={{
+                  background: `linear-gradient(to right, ${colors.primaryRed}, ${colors.primaryRedHover})`,
+                }}
+              >
+                <div
+                  className="rounded-lg sm:rounded-xl px-4 py-3 group-hover:bg-[#FDE7E7] transition-colors"
+                  style={{ backgroundColor: colors.white }}
+                >
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <span className="font-bold text-purple-700 text-sm sm:text-base">
+                      <span
+                        className="font-bold text-sm sm:text-base"
+                        style={{ color: colors.primaryRed }}
+                      >
                         {userProfile?.verified
                           ? "Browse Travelers"
                           : "Start Verification"}
                       </span>
-                      <p className="text-xs text-purple-600 mt-0.5">
+                      <p
+                        className="text-xs mt-0.5"
+                        style={{ color: colors.primaryRed }}
+                      >
                         {userProfile?.verified
                           ? "Find your perfect delivery partner"
                           : "Quick 3-minute setup process"}
                       </p>
                     </div>
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ml-3">
+                    <div
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ml-3"
+                      style={{ backgroundColor: colors.lighterRed }}
+                    >
                       <svg
-                        className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 group-hover:translate-x-0.5 transition-transform"
+                        className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-0.5 transition-transform"
+                        style={{ color: colors.primaryRed }}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -259,16 +394,23 @@ export default function DashboardPage() {
               <div className="absolute inset-0 bg-white bg-opacity-95 backdrop-blur-sm flex items-center justify-center">
                 <div className="text-center">
                   <div className="relative">
-                    <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-3 border-purple-200 mx-auto"></div>
                     <div
-                      className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-3 border-purple-600 border-t-transparent absolute top-0 left-0"
+                      className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-3 mx-auto"
+                      style={{ borderColor: colors.borderGray }}
+                    ></div>
+                    <div
+                      className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-3 border-t-transparent absolute top-0 left-0"
                       style={{
+                        borderColor: colors.primaryRed,
                         animationDirection: "reverse",
                         animationDuration: "0.8s",
                       }}
                     ></div>
                   </div>
-                  <p className="text-purple-600 font-medium mt-3 text-sm sm:text-base">
+                  <p
+                    className="font-medium mt-3 text-sm sm:text-base"
+                    style={{ color: colors.primaryRed }}
+                  >
                     {userProfile?.verified
                       ? "Preparing your sender dashboard..."
                       : "Preparing verification process..."}
@@ -281,17 +423,32 @@ export default function DashboardPage() {
           {/* Compact Traveler Card */}
           <div
             onClick={() => !isNavigating && handleRoleSelection("traveler")}
-            className={`group relative bg-white rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden border border-gray-100 ${
+            className={`group relative rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer overflow-hidden border ${
               isNavigating && selectedRole !== "traveler" ? "opacity-50" : ""
             }`}
+            style={{
+              backgroundColor: colors.white,
+              borderColor: colors.borderGray,
+            }}
           >
             {/* Compact Blue Gradient Header */}
-            <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 p-4 sm:p-6 text-white relative overflow-hidden">
+            <div
+              className="p-4 sm:p-6 text-white relative overflow-hidden"
+              style={{
+                background: `linear-gradient(to bottom right, ${colors.primaryBlue}, ${colors.primaryBlueHover})`,
+              }}
+            >
               <div className="absolute inset-0 bg-black opacity-5"></div>
-              <div className="absolute top-0 right-0 w-20 h-20 bg-white opacity-8 rounded-full -mr-10 -mt-10"></div>
+              <div
+                className="absolute top-0 right-0 w-20 h-20 rounded-full -mr-10 -mt-10"
+                style={{ backgroundColor: colors.white, opacity: 0.08 }}
+              ></div>
 
               <div className="relative">
-                <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl mb-3 sm:mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                <div
+                  className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl mb-3 sm:mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300"
+                  style={{ backgroundColor: `rgba(255, 255, 255, 0.2)` }}
+                >
                   <svg
                     className="w-6 h-6 sm:w-8 sm:h-8 text-white"
                     fill="none"
@@ -309,7 +466,10 @@ export default function DashboardPage() {
                 <h2 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">
                   I'm Traveling
                 </h2>
-                <p className="text-white/90 text-sm sm:text-base leading-relaxed">
+                <p
+                  className="text-sm sm:text-base leading-relaxed"
+                  style={{ color: "rgba(255, 255, 255, 0.9)" }}
+                >
                   Turn your journey into earnings by helping others
                 </p>
               </div>
@@ -319,9 +479,13 @@ export default function DashboardPage() {
             <div className="p-4 sm:p-6">
               <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
                 <div className="flex items-start group/item">
-                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform">
+                  <div
+                    className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform"
+                    style={{ backgroundColor: colors.lightGray }}
+                  >
                     <svg
-                      className="w-4 h-4 sm:w-5 sm:h-5 text-white"
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                      style={{ color: colors.primaryRed }}
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -333,19 +497,26 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1">
+                    <h3
+                      className="font-bold text-sm sm:text-base mb-1"
+                      style={{ color: colors.darkGray }}
+                    >
                       Set Your Own Rates
                     </h3>
-                    <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
+                    <p className="text-xs sm:text-sm leading-relaxed text-gray-600">
                       Decide how much to charge per kilogram
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-start group/item">
-                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform">
+                  <div
+                    className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform"
+                    style={{ backgroundColor: colors.lightGray }}
+                  >
                     <svg
-                      className="w-4 h-4 sm:w-5 sm:h-5 text-white"
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                      style={{ color: colors.primaryBlue }}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -359,19 +530,26 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1">
+                    <h3
+                      className="font-bold text-sm sm:text-base mb-1"
+                      style={{ color: colors.darkGray }}
+                    >
                       Choose What to Carry
                     </h3>
-                    <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
+                    <p className="text-xs sm:text-sm leading-relaxed text-gray-600">
                       Accept only the items you're comfortable with
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-start group/item">
-                  <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-400 to-orange-600 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform">
+                  <div
+                    className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 group-hover/item:scale-110 transition-transform"
+                    style={{ backgroundColor: colors.lightGray }}
+                  >
                     <svg
-                      className="w-4 h-4 sm:w-5 sm:h-5 text-white"
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                      style={{ color: colors.gold }}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -385,10 +563,13 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1">
+                    <h3
+                      className="font-bold text-sm sm:text-base mb-1"
+                      style={{ color: colors.darkGray }}
+                    >
                       Build Your Reputation
                     </h3>
-                    <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
+                    <p className="text-xs sm:text-sm leading-relaxed text-gray-600">
                       Earn ratings and become a trusted traveler
                     </p>
                   </div>
@@ -397,9 +578,18 @@ export default function DashboardPage() {
 
               {/* Compact Verification Status */}
               {!userProfile?.verified && (
-                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg sm:rounded-xl">
+                <div
+                  className="mb-4 sm:mb-6 p-3 sm:p-4 rounded-lg sm:rounded-xl border"
+                  style={{
+                    backgroundColor: colors.goldLight,
+                    borderColor: colors.gold,
+                  }}
+                >
                   <div className="flex items-start">
-                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center mr-3">
+                    <div
+                      className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3"
+                      style={{ backgroundColor: colors.gold }}
+                    >
                       <svg
                         className="w-4 h-4 sm:w-5 sm:h-5 text-white"
                         fill="currentColor"
@@ -413,10 +603,13 @@ export default function DashboardPage() {
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-amber-900 text-sm sm:text-base mb-1">
+                      <h4
+                        className="font-bold text-sm sm:text-base mb-1"
+                        style={{ color: colors.goldDark }}
+                      >
                         Identity Verification Required
                       </h4>
-                      <p className="text-amber-800 text-xs sm:text-sm leading-relaxed">
+                      <p className="text-xs sm:text-sm leading-relaxed text-gray-600">
                         You'll need to verify your identity before posting trips
                       </p>
                     </div>
@@ -425,24 +618,42 @@ export default function DashboardPage() {
               )}
 
               {/* Compact Action Button */}
-              <div className="relative overflow-hidden rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 p-0.5 group-hover:from-blue-600 group-hover:to-indigo-700 transition-all duration-300">
-                <div className="bg-white rounded-lg sm:rounded-xl px-4 py-3 group-hover:bg-gray-50 transition-colors">
+              <div
+                className="relative overflow-hidden rounded-lg sm:rounded-xl p-0.5 group-hover:from-blue-600 group-hover:to-indigo-700 transition-all duration-300"
+                style={{
+                  background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryBlueHover})`,
+                }}
+              >
+                <div
+                  className="rounded-lg sm:rounded-xl px-4 py-3 group-hover:bg-[#E5E9EC] transition-colors"
+                  style={{ backgroundColor: colors.white }}
+                >
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
-                      <span className="font-bold text-blue-700 text-sm sm:text-base">
+                      <span
+                        className="font-bold text-sm sm:text-base"
+                        style={{ color: colors.primaryBlue }}
+                      >
                         {userProfile?.verified
                           ? "Go to Dashboard"
                           : "Start Verification"}
                       </span>
-                      <p className="text-xs text-blue-600 mt-0.5">
+                      <p
+                        className="text-xs mt-0.5"
+                        style={{ color: colors.primaryBlue }}
+                      >
                         {userProfile?.verified
                           ? "Manage your trips and earnings"
                           : "Quick 3-minute setup process"}
                       </p>
                     </div>
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ml-3">
+                    <div
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ml-3"
+                      style={{ backgroundColor: colors.lighterBlue }}
+                    >
                       <svg
-                        className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 group-hover:translate-x-0.5 transition-transform"
+                        className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-0.5 transition-transform"
+                        style={{ color: colors.primaryBlue }}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -464,16 +675,23 @@ export default function DashboardPage() {
               <div className="absolute inset-0 bg-white bg-opacity-95 backdrop-blur-sm flex items-center justify-center">
                 <div className="text-center">
                   <div className="relative">
-                    <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-3 border-blue-200 mx-auto"></div>
                     <div
-                      className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-3 border-blue-600 border-t-transparent absolute top-0 left-0"
+                      className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-3 mx-auto"
+                      style={{ borderColor: colors.borderGray }}
+                    ></div>
+                    <div
+                      className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-3 border-t-transparent absolute top-0 left-0"
                       style={{
+                        borderColor: colors.primaryBlue,
                         animationDirection: "reverse",
                         animationDuration: "0.8s",
                       }}
                     ></div>
                   </div>
-                  <p className="text-blue-600 font-medium mt-3 text-sm sm:text-base">
+                  <p
+                    className="font-medium mt-3 text-sm sm:text-base"
+                    style={{ color: colors.primaryBlue }}
+                  >
                     {userProfile?.verified
                       ? "Loading your dashboard..."
                       : "Preparing verification process..."}
@@ -490,9 +708,15 @@ export default function DashboardPage() {
             mounted ? "animate-fade-in-up" : "opacity-0"
           } animation-delay-400`}
         >
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-md border border-gray-200 max-w-xl mx-auto">
+          <div
+            className="bg-white/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-md border max-w-xl mx-auto"
+            style={{ borderColor: colors.borderGray }}
+          >
             <div className="mb-4 sm:mb-6">
-              <div className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg sm:rounded-xl mb-2 sm:mb-3">
+              <div
+                className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl mb-2 sm:mb-3"
+                style={{ backgroundColor: colors.lightGray }}
+              >
                 <svg
                   className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600"
                   fill="none"
@@ -507,7 +731,10 @@ export default function DashboardPage() {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+              <h3
+                className="text-lg sm:text-xl font-bold mb-2"
+                style={{ color: colors.darkGray }}
+              >
                 Need Help Choosing?
               </h3>
               <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-4">
@@ -519,7 +746,10 @@ export default function DashboardPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
                 href="/how-it-works"
-                className="inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 transform hover:scale-105 shadow-md text-sm"
+                className="inline-flex items-center justify-center px-4 py-2.5 text-white font-medium rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 transform hover:scale-105 shadow-md text-sm"
+                style={{
+                  background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryBlueHover})`,
+                }}
               >
                 <svg
                   className="w-4 h-4 mr-2"
@@ -538,10 +768,15 @@ export default function DashboardPage() {
               </a>
               <a
                 href="/support"
-                className="inline-flex items-center justify-center px-4 py-2.5 bg-white text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 shadow-md border border-gray-200 text-sm"
+                className="inline-flex items-center justify-center px-4 py-2.5 font-medium rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 shadow-md border text-sm"
+                style={{
+                  backgroundColor: colors.white,
+                  color: colors.darkGray,
+                  borderColor: colors.borderGray,
+                }}
               >
                 <svg
-                  className="w-4 h-4 mr-2"
+                  className="w-4 h-4 mr-2 text-gray-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

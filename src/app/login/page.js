@@ -1,9 +1,7 @@
-// app/login/page.js
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
 import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
@@ -11,6 +9,7 @@ import {
   signInWithCredential,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import PhoneInput from "@/components/PhoneInput";
 import OTPInput from "@/components/OTPInput";
 import AuthWrapper from "@/components/AuthWrapper";
@@ -33,6 +32,23 @@ function LoginContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
+
+  // A more professional, globally defined color palette
+  const colors = {
+    primaryRed: "#DC143C",
+    primaryRedHover: "#B01030",
+    primaryBlue: "#003366",
+    primaryBlueHover: "#002A52",
+    gold: "#FFD700",
+    goldLight: "#FFFBEB",
+    goldDark: "#A17300",
+    white: "#FFFFFF",
+    darkGray: "#2E2E2E",
+    lightGray: "#F5F5F5",
+    borderGray: "#D9D9D9",
+    lighterRed: "#FFF5F5",
+    lighterBlue: "#F0F4F8",
+  };
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -154,11 +170,19 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ backgroundColor: colors.lightGray }}
+    >
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-full mb-4">
+          <div
+            className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4"
+            style={{
+              background: `linear-gradient(to bottom right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+            }}
+          >
             <svg
               className="w-12 h-12 text-white"
               fill="none"
@@ -173,15 +197,23 @@ function LoginContent() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-800">Nasosend</h1>
+          <h1 className="text-3xl font-bold" style={{ color: colors.darkGray }}>
+            Nasosend
+          </h1>
           <p className="text-gray-600 mt-2">
             Send items from Australia to Nepal
           </p>
         </div>
 
         {/* Auth Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">
+        <div
+          className="rounded-2xl shadow-xl p-8"
+          style={{ backgroundColor: colors.white }}
+        >
+          <h2
+            className="text-2xl font-semibold text-center mb-6"
+            style={{ color: colors.darkGray }}
+          >
             {step === "phone"
               ? "Sign in with Phone"
               : "Enter Verification Code"}
@@ -203,7 +235,10 @@ function LoginContent() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200 ease-in-out transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full py-3 px-4 text-white font-medium rounded-lg transition duration-200 ease-in-out transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                style={{
+                  background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+                }}
               >
                 {isLoading ? (
                   <>
@@ -235,11 +270,19 @@ function LoginContent() {
 
               <div className="text-center text-sm text-gray-600">
                 By continuing, you agree to our{" "}
-                <Link href="/terms" className="text-blue-600 hover:underline">
+                <Link
+                  href="/terms"
+                  className="hover:underline"
+                  style={{ color: colors.primaryBlue }}
+                >
                   Terms of Service
                 </Link>{" "}
                 and{" "}
-                <Link href="/privacy" className="text-blue-600 hover:underline">
+                <Link
+                  href="/privacy"
+                  className="hover:underline"
+                  style={{ color: colors.primaryBlue }}
+                >
                   Privacy Policy
                 </Link>
               </div>
@@ -250,7 +293,12 @@ function LoginContent() {
                 <p className="text-sm text-gray-600 text-center mb-4">
                   We've sent a verification code to
                   <br />
-                  <span className="font-semibold">{phoneNumber}</span>
+                  <span
+                    className="font-semibold"
+                    style={{ color: colors.darkGray }}
+                  >
+                    {phoneNumber}
+                  </span>
                 </p>
                 <OTPInput value={otp} onChange={setOtp} error={error} />
               </div>
@@ -258,7 +306,10 @@ function LoginContent() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200 ease-in-out transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full py-3 px-4 text-white font-medium rounded-lg transition duration-200 ease-in-out transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                style={{
+                  background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+                }}
               >
                 {isLoading ? (
                   <>
@@ -298,7 +349,8 @@ function LoginContent() {
                   <button
                     type="button"
                     onClick={resendOTP}
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-sm hover:underline"
+                    style={{ color: colors.primaryBlue }}
                   >
                     Didn't receive the code? Resend
                   </button>
@@ -312,7 +364,8 @@ function LoginContent() {
                   setOtp("");
                   setError("");
                 }}
-                className="w-full text-sm text-gray-600 hover:text-gray-800"
+                className="w-full text-sm hover:text-gray-800"
+                style={{ color: colors.darkGray }}
               >
                 ← Change phone number
               </button>

@@ -1,4 +1,3 @@
-//components/GlobalNavigation.js
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,6 +16,19 @@ export default function GlobalNavigation() {
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [currentAccountType, setCurrentAccountType] = useState("");
+
+  // A more professional, globally defined color palette
+  const colors = {
+    primaryRed: "#DC143C",
+    primaryRedHover: "#B01030",
+    primaryBlue: "#003366",
+    primaryBlueHover: "#002244",
+    gold: "#FFD700",
+    white: "#FFFFFF",
+    darkGray: "#2E2E2E",
+    lightGray: "#F5F5F5",
+    borderGray: "#D9D9D9",
+  };
 
   useEffect(() => {
     // Determine current account type based on path
@@ -142,9 +154,13 @@ export default function GlobalNavigation() {
                 />
               </svg>
             ) : (
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 group-hover:bg-purple-200 transition-colors flex-shrink-0">
+              <div
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 transition-colors flex-shrink-0`}
+                style={{ backgroundColor: colors.lightGray }}
+              >
                 <svg
-                  className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600"
+                  className="w-4 h-4 sm:w-5 sm:h-5"
+                  style={{ color: colors.primaryRed }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -184,13 +200,17 @@ export default function GlobalNavigation() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                  d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
                 />
               </svg>
             ) : (
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 group-hover:bg-blue-200 transition-colors flex-shrink-0">
+              <div
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 transition-colors flex-shrink-0`}
+                style={{ backgroundColor: colors.lightGray }}
+              >
                 <svg
-                  className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600"
+                  className="w-4 h-4 sm:w-5 sm:h-5"
+                  style={{ color: colors.primaryBlue }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -199,7 +219,7 @@ export default function GlobalNavigation() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
                   />
                 </svg>
               </div>
@@ -240,15 +260,22 @@ export default function GlobalNavigation() {
                 </svg>
                 <span className="font-semibold">Notifications</span>
               </div>
-              <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 font-bold">
+              <span
+                style={{ backgroundColor: colors.primaryRed }}
+                className="text-white text-xs rounded-full px-2 py-1 font-bold"
+              >
                 3
               </span>
             </>
           ) : (
             <>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-100 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 group-hover:bg-yellow-200 transition-colors flex-shrink-0">
+              <div
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 transition-colors flex-shrink-0`}
+                style={{ backgroundColor: colors.lightGray }}
+              >
                 <svg
-                  className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600"
+                  className="w-4 h-4 sm:w-5 sm:h-5"
+                  style={{ color: colors.gold }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -266,7 +293,10 @@ export default function GlobalNavigation() {
                   <span className="font-semibold">Notifications</span>
                   <p className="text-xs text-gray-500">View your updates</p>
                 </div>
-                <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full px-2 py-1 font-bold shadow-sm flex-shrink-0">
+                <span
+                  style={{ backgroundColor: colors.primaryRed }}
+                  className="text-white text-xs rounded-full px-2 py-1 font-bold shadow-sm flex-shrink-0"
+                >
                   3
                 </span>
               </div>
@@ -275,18 +305,20 @@ export default function GlobalNavigation() {
         </Link>
 
         {/* Sign Out */}
-        <div className={isMobile ? "" : "border-t border-gray-100 py-2"}>
+        <div className={isMobile ? "" : `border-t border-gray-100 py-2`}>
           <button
             onClick={handleSignOut}
             className={
               isMobile
-                ? "flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                : "flex items-center w-full px-4 sm:px-6 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group"
+                ? `flex items-center w-full px-4 py-3 text-sm rounded-xl transition-colors`
+                : `flex items-center w-full px-4 sm:px-6 py-3 text-sm transition-colors group`
             }
+            style={{ color: colors.primaryRed }}
           >
             {isMobile ? (
               <svg
-                className="w-5 h-5 text-red-600 mr-3"
+                className="w-5 h-5 mr-3"
+                style={{ color: colors.primaryRed }}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -299,9 +331,13 @@ export default function GlobalNavigation() {
                 />
               </svg>
             ) : (
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 group-hover:bg-red-200 transition-colors flex-shrink-0">
+              <div
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 transition-colors flex-shrink-0`}
+                style={{ backgroundColor: colors.lightGray }}
+              >
                 <svg
-                  className="w-4 h-4 sm:w-5 sm:h-5 text-red-600"
+                  className="w-4 h-4 sm:w-5 sm:h-5"
+                  style={{ color: colors.primaryRed }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -359,13 +395,27 @@ export default function GlobalNavigation() {
   const getAccountBadge = () => {
     if (currentAccountType === "sender") {
       return (
-        <span className="ml-2 px-2 py-1 text-xs font-semibold bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 rounded-full border border-purple-200">
+        <span
+          className="ml-2 px-2 py-1 text-xs font-semibold rounded-full border"
+          style={{
+            backgroundColor: "#FEEBEB",
+            color: colors.primaryRed,
+            borderColor: "#F0C8C8",
+          }}
+        >
           Sender
         </span>
       );
     } else if (currentAccountType === "traveler") {
       return (
-        <span className="ml-2 px-2 py-1 text-xs font-semibold bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-full border border-blue-200">
+        <span
+          className="ml-2 px-2 py-1 text-xs font-semibold rounded-full border"
+          style={{
+            backgroundColor: "#E5E9EC",
+            color: colors.primaryBlue,
+            borderColor: "#C8D9E0",
+          }}
+        >
           Traveler
         </span>
       );
@@ -376,7 +426,10 @@ export default function GlobalNavigation() {
   const getVerificationBadge = () => {
     if (currentAccountType === "traveler" && userProfile?.verified) {
       return (
-        <div className="ml-2 w-4 h-4 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center">
+        <div
+          className="ml-2 w-4 h-4 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: colors.gold }}
+        >
           <svg
             className="w-2.5 h-2.5 text-white"
             fill="currentColor"
@@ -411,7 +464,10 @@ export default function GlobalNavigation() {
   }
 
   return (
-    <nav className="bg-white/95 backdrop-blur-md shadow-xl border-b border-gray-200/50 sticky top-0 z-50">
+    <nav
+      className="bg-white/95 backdrop-blur-md shadow-lg border-b sticky top-0 z-50"
+      style={{ borderColor: colors.borderGray }}
+    >
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-20">
           {/* Logo and Main Nav */}
@@ -429,7 +485,6 @@ export default function GlobalNavigation() {
                   className="h-10 sm:h-12 lg:h-14 w-auto transition-transform group-hover:scale-105"
                   priority
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-green-400/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
             </Link>
 
@@ -443,9 +498,13 @@ export default function GlobalNavigation() {
                     href={item.href}
                     className={`relative px-3 xl:px-4 py-2 text-sm font-semibold transition-all duration-200 rounded-xl whitespace-nowrap ${
                       isActive
-                        ? "text-blue-600 bg-blue-50 shadow-sm"
-                        : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                        ? "shadow-sm"
+                        : "hover:bg-[#F5F5F5] hover:text-[#003366]"
                     }`}
+                    style={{
+                      color: isActive ? colors.primaryBlue : colors.darkGray,
+                      backgroundColor: isActive ? "#E5E9EC" : "transparent",
+                    }}
                   >
                     {item.label}
                   </Link>
@@ -456,29 +515,43 @@ export default function GlobalNavigation() {
 
           {/* Right Side - Desktop Account Menu / Mobile Menu Button */}
           <div className="flex items-center space-x-4 min-w-0">
-            {/* Desktop Only - User Account */}
             {loading ? (
               <div className="hidden lg:flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent"></div>
+                <div
+                  className="animate-spin rounded-full h-6 w-6 border-2 border-t-transparent"
+                  style={{ borderColor: colors.primaryBlue }}
+                ></div>
                 <span className="text-sm text-gray-600">Loading...</span>
               </div>
             ) : user ? (
               <div className="relative dropdown-container hidden lg:block">
                 <button
                   onClick={() => setShowAccountDropdown(!showAccountDropdown)}
-                  className="flex items-center space-x-3 px-4 py-2 rounded-2xl hover:bg-gray-50 transition-all duration-200 border border-gray-200 hover:border-gray-300 hover:shadow-md bg-white/80 backdrop-blur-sm"
+                  className="flex items-center space-x-3 px-4 py-2 rounded-2xl transition-all duration-200 border hover:shadow-md bg-white/80 backdrop-blur-sm"
+                  style={{
+                    borderColor: colors.borderGray,
+                    backgroundColor: colors.white,
+                  }}
                 >
                   <div className="flex items-center">
                     {/* Enhanced Profile Picture */}
                     <div className="relative">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-500 to-green-500 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-lg">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-lg"
+                        style={{
+                          background: `linear-gradient(to bottom right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+                        }}
+                      >
                         {userProfile?.verification?.fullName?.charAt(0) ||
                           user.email?.charAt(0) ||
                           "U"}
                       </div>
                       {userProfile?.verified &&
                         currentAccountType === "traveler" && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                          <div
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"
+                            style={{ backgroundColor: colors.gold }}
+                          >
                             <svg
                               className="w-2 h-2 text-white"
                               fill="currentColor"
@@ -495,7 +568,10 @@ export default function GlobalNavigation() {
                     </div>
 
                     <div className="ml-3 text-left">
-                      <div className="text-sm font-bold text-gray-900 flex items-center">
+                      <div
+                        className="text-sm font-bold flex items-center"
+                        style={{ color: colors.darkGray }}
+                      >
                         <span className="truncate max-w-32">
                           {userProfile?.verification?.fullName || "User"}
                         </span>
@@ -527,9 +603,18 @@ export default function GlobalNavigation() {
 
                 {/* Desktop Account Dropdown */}
                 {showAccountDropdown && (
-                  <div className="absolute right-0 mt-3 w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden animate-in slide-in-from-top-2 duration-200 max-h-[calc(100vh-100px)] overflow-y-auto">
+                  <div
+                    className="absolute right-0 mt-3 w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border overflow-hidden animate-in slide-in-from-top-2 duration-200 max-h-[calc(100vh-100px)] overflow-y-auto"
+                    style={{ borderColor: colors.borderGray }}
+                  >
                     {/* Account Type Section */}
-                    <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-blue-50/50">
+                    <div
+                      className="px-6 py-5 border-b"
+                      style={{
+                        borderColor: colors.borderGray,
+                        backgroundColor: colors.lightGray,
+                      }}
+                    >
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center">
                         <svg
                           className="w-4 h-4 mr-2"
@@ -551,12 +636,28 @@ export default function GlobalNavigation() {
                           onClick={() => handleAccountSwitch("sender")}
                           className={`w-full flex items-center justify-between px-5 py-4 rounded-xl transition-all duration-200 ${
                             currentAccountType === "sender"
-                              ? "bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 shadow-md border border-purple-200"
-                              : "hover:bg-gray-100 text-gray-700 border border-gray-200"
+                              ? "shadow-md border"
+                              : "border hover:bg-[#F0C8C8]"
                           }`}
+                          style={{
+                            color: colors.darkGray,
+                            backgroundColor:
+                              currentAccountType === "sender"
+                                ? "#FEEBEB"
+                                : colors.white,
+                            borderColor:
+                              currentAccountType === "sender"
+                                ? "#F0C8C8"
+                                : colors.borderGray,
+                          }}
                         >
                           <div className="flex items-center">
-                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 shadow-lg"
+                              style={{
+                                background: `linear-gradient(to bottom right, ${colors.primaryRed}, ${colors.primaryRedHover})`,
+                              }}
+                            >
                               <svg
                                 className="w-5 h-5 text-white"
                                 fill="none"
@@ -581,7 +682,12 @@ export default function GlobalNavigation() {
                             </div>
                           </div>
                           {currentAccountType === "sender" && (
-                            <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center"
+                              style={{
+                                backgroundColor: colors.primaryRedHover,
+                              }}
+                            >
                               <svg
                                 className="w-4 h-4 text-white"
                                 fill="currentColor"
@@ -601,12 +707,28 @@ export default function GlobalNavigation() {
                           onClick={() => handleAccountSwitch("traveler")}
                           className={`w-full flex items-center justify-between px-5 py-4 rounded-xl transition-all duration-200 ${
                             currentAccountType === "traveler"
-                              ? "bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 shadow-md border border-blue-200"
-                              : "hover:bg-gray-100 text-gray-700 border border-gray-200"
+                              ? "shadow-md border"
+                              : "hover:bg-[#E5E9EC] border"
                           }`}
+                          style={{
+                            color: colors.darkGray,
+                            backgroundColor:
+                              currentAccountType === "traveler"
+                                ? "#E5E9EC"
+                                : colors.white,
+                            borderColor:
+                              currentAccountType === "traveler"
+                                ? "#C8D9E0"
+                                : colors.borderGray,
+                          }}
                         >
                           <div className="flex items-center">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center mr-4 shadow-lg"
+                              style={{
+                                background: `linear-gradient(to bottom right, ${colors.primaryBlue}, ${colors.primaryBlueHover})`,
+                              }}
+                            >
                               <svg
                                 className="w-5 h-5 text-white"
                                 fill="none"
@@ -617,7 +739,7 @@ export default function GlobalNavigation() {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                                  d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
                                 />
                               </svg>
                             </div>
@@ -633,12 +755,18 @@ export default function GlobalNavigation() {
                           <div className="flex items-center">
                             {!userProfile?.verified &&
                               currentAccountType !== "traveler" && (
-                                <span className="text-xs bg-gradient-to-r from-amber-400 to-orange-400 text-white px-3 py-1 rounded-full mr-2 font-bold shadow-sm">
+                                <span
+                                  className="text-xs text-white px-3 py-1 rounded-full mr-2 font-bold shadow-sm"
+                                  style={{ backgroundColor: colors.gold }}
+                                >
                                   Verify
                                 </span>
                               )}
                             {currentAccountType === "traveler" && (
-                              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                              <div
+                                className="w-6 h-6 rounded-full flex items-center justify-center"
+                                style={{ backgroundColor: colors.primaryBlue }}
+                              >
                                 <svg
                                   className="w-4 h-4 text-white"
                                   fill="currentColor"
@@ -668,7 +796,11 @@ export default function GlobalNavigation() {
               <div className="hidden lg:flex items-center space-x-3">
                 <Link
                   href="/login"
-                  className="px-8 py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 text-white text-sm font-bold rounded-2xl hover:from-blue-700 hover:via-purple-700 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  className="px-8 py-3 text-white text-sm font-bold rounded-2xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  style={{
+                    backgroundColor: colors.primaryRed,
+                    hoverBackgroundColor: colors.primaryRedHover,
+                  }}
                 >
                   Login
                 </Link>
@@ -678,12 +810,17 @@ export default function GlobalNavigation() {
             {/* Mobile Menu Button - Always Visible on Mobile */}
             <button
               onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="lg:hidden p-3 rounded-xl hover:bg-gray-100 transition-colors border border-gray-200"
+              className="lg:hidden p-3 rounded-xl transition-colors border"
+              style={{
+                backgroundColor: colors.white,
+                borderColor: colors.borderGray,
+              }}
             >
               <svg
                 className={`w-6 h-6 transition-transform duration-200 ${
                   showMobileMenu ? "rotate-90" : ""
                 }`}
+                style={{ color: colors.darkGray }}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -710,7 +847,10 @@ export default function GlobalNavigation() {
 
         {/* Mobile Menu */}
         {showMobileMenu && (
-          <div className="lg:hidden border-t border-gray-200 bg-white/95 backdrop-blur-md">
+          <div
+            className="lg:hidden border-t bg-white/95 backdrop-blur-md"
+            style={{ borderColor: colors.borderGray }}
+          >
             <div className="px-4 py-4 space-y-3 max-h-[calc(100vh-80px)] overflow-y-auto">
               {/* Navigation Items - Compact */}
               <div className="grid grid-cols-2 gap-2">
@@ -720,11 +860,16 @@ export default function GlobalNavigation() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`block px-3 py-2 rounded-lg text-sm font-semibold transition-all text-center ${
+                      className={`block px-3 py-2 rounded-lg text-sm font-semibold text-center transition-all ${
                         isActive
-                          ? "text-blue-600 bg-blue-50 border border-blue-200"
-                          : "text-gray-700 hover:bg-gray-50 border border-transparent"
+                          ? `border`
+                          : "hover:bg-[#F5F5F5] border border-transparent"
                       }`}
+                      style={{
+                        color: isActive ? colors.primaryBlue : colors.darkGray,
+                        backgroundColor: isActive ? "#E5E9EC" : colors.white,
+                        borderColor: isActive ? "#C8D9E0" : "transparent",
+                      }}
                       onClick={() => setShowMobileMenu(false)}
                     >
                       {item.label}
@@ -735,16 +880,30 @@ export default function GlobalNavigation() {
 
               {/* User Section - Only show if user is logged in */}
               {user ? (
-                <div className="border-t border-gray-200 pt-3 space-y-3">
+                <div
+                  className="border-t pt-3 space-y-3"
+                  style={{ borderColor: colors.borderGray }}
+                >
                   {/* User Profile Display - Compact */}
-                  <div className="flex items-center px-3 py-2 bg-gray-50 rounded-lg">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-purple-500 to-green-500 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md relative">
+                  <div
+                    className="flex items-center px-3 py-2 rounded-lg"
+                    style={{ backgroundColor: colors.lightGray }}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md relative"
+                      style={{
+                        background: `linear-gradient(to bottom right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+                      }}
+                    >
                       {userProfile?.verification?.fullName?.charAt(0) ||
                         user.email?.charAt(0) ||
                         "U"}
                       {userProfile?.verified &&
                         currentAccountType === "traveler" && (
-                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                          <div
+                            className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white flex items-center justify-center"
+                            style={{ backgroundColor: colors.gold }}
+                          >
                             <svg
                               className="w-1.5 h-1.5 text-white"
                               fill="currentColor"
@@ -761,16 +920,25 @@ export default function GlobalNavigation() {
                     </div>
                     <div className="ml-3 min-w-0 flex-1">
                       <div className="flex items-center space-x-2">
-                        <p className="text-sm font-bold text-gray-900 truncate">
+                        <p
+                          className="text-sm font-bold truncate"
+                          style={{ color: colors.darkGray }}
+                        >
                           {userProfile?.verification?.fullName || "User"}
                         </p>
                         {currentAccountType && (
                           <span
-                            className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                              currentAccountType === "sender"
-                                ? "bg-purple-100 text-purple-700"
-                                : "bg-blue-100 text-blue-700"
-                            }`}
+                            className={`px-2 py-0.5 text-xs font-semibold rounded-full`}
+                            style={{
+                              backgroundColor:
+                                currentAccountType === "sender"
+                                  ? "#FEEBEB"
+                                  : "#E5E9EC",
+                              color:
+                                currentAccountType === "sender"
+                                  ? colors.primaryRed
+                                  : colors.primaryBlue,
+                            }}
                           >
                             {currentAccountType === "sender" ? "S" : "T"}
                           </span>
@@ -786,13 +954,30 @@ export default function GlobalNavigation() {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => handleAccountSwitch("sender")}
-                      className={`flex items-center justify-center px-3 py-2 rounded-lg transition-all ${
+                      className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all ${
                         currentAccountType === "sender"
-                          ? "bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border border-purple-200"
-                          : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200"
+                          ? "border"
+                          : "bg-white hover:bg-[#FEEBEB] border"
                       }`}
+                      style={{
+                        backgroundColor:
+                          currentAccountType === "sender"
+                            ? "#FEEBEB"
+                            : colors.white,
+                        color:
+                          currentAccountType === "sender"
+                            ? colors.primaryRed
+                            : colors.darkGray,
+                        borderColor:
+                          currentAccountType === "sender"
+                            ? "#F0C8C8"
+                            : colors.borderGray,
+                      }}
                     >
-                      <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md flex items-center justify-center mr-2">
+                      <div
+                        className="w-6 h-6 rounded-md flex items-center justify-center mb-1"
+                        style={{ backgroundColor: colors.primaryRed }}
+                      >
                         <svg
                           className="w-3 h-3 text-white"
                           fill="none"
@@ -812,13 +997,30 @@ export default function GlobalNavigation() {
 
                     <button
                       onClick={() => handleAccountSwitch("traveler")}
-                      className={`flex items-center justify-center px-3 py-2 rounded-lg transition-all relative ${
+                      className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-all relative ${
                         currentAccountType === "traveler"
-                          ? "bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 border border-blue-200"
-                          : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200"
+                          ? "border"
+                          : "bg-white hover:bg-[#E5E9EC] border"
                       }`}
+                      style={{
+                        backgroundColor:
+                          currentAccountType === "traveler"
+                            ? "#E5E9EC"
+                            : colors.white,
+                        color:
+                          currentAccountType === "traveler"
+                            ? colors.primaryBlue
+                            : colors.darkGray,
+                        borderColor:
+                          currentAccountType === "traveler"
+                            ? "#C8D9E0"
+                            : colors.borderGray,
+                      }}
                     >
-                      <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-md flex items-center justify-center mr-2">
+                      <div
+                        className="w-6 h-6 rounded-md flex items-center justify-center mb-1"
+                        style={{ backgroundColor: colors.primaryBlue }}
+                      >
                         <svg
                           className="w-3 h-3 text-white"
                           fill="none"
@@ -829,14 +1031,17 @@ export default function GlobalNavigation() {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
                           />
                         </svg>
                       </div>
                       <span className="text-sm font-semibold">Traveler</span>
                       {!userProfile?.verified &&
                         currentAccountType !== "traveler" && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-400 rounded-full flex items-center justify-center">
+                          <div
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: colors.gold }}
+                          >
                             <span className="text-xs text-white font-bold">
                               !
                             </span>
@@ -889,7 +1094,10 @@ export default function GlobalNavigation() {
                       <span className="text-xs font-semibold">
                         Notifications
                       </span>
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                      <div
+                        className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: colors.primaryRed }}
+                      >
                         <span className="text-xs text-white font-bold">3</span>
                       </div>
                     </Link>
@@ -902,7 +1110,8 @@ export default function GlobalNavigation() {
                         className="flex flex-col items-center px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                       >
                         <svg
-                          className="w-5 h-5 text-purple-500 mb-1"
+                          className="w-5 h-5 mb-1"
+                          style={{ color: colors.primaryRed }}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -925,7 +1134,8 @@ export default function GlobalNavigation() {
                         className="flex flex-col items-center px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                       >
                         <svg
-                          className="w-5 h-5 text-blue-500 mb-1"
+                          className="w-5 h-5 mb-1"
+                          style={{ color: colors.primaryBlue }}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -934,7 +1144,7 @@ export default function GlobalNavigation() {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
                           />
                         </svg>
                         <span className="text-xs font-semibold">Trips</span>
@@ -946,7 +1156,8 @@ export default function GlobalNavigation() {
                       className="flex flex-col items-center px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <svg
-                        className="w-5 h-5 text-red-600 mb-1"
+                        className="w-5 h-5 mb-1"
+                        style={{ color: colors.primaryRed }}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -964,10 +1175,16 @@ export default function GlobalNavigation() {
                 </div>
               ) : (
                 /* Login Section for non-authenticated users */
-                <div className="border-t border-gray-200 pt-3">
+                <div
+                  className="border-t pt-3"
+                  style={{ borderColor: colors.borderGray }}
+                >
                   <Link
                     href="/login"
-                    className="block w-full px-6 py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 text-white text-center font-bold rounded-xl hover:from-blue-700 hover:via-purple-700 hover:to-green-700 transition-all duration-200 shadow-lg"
+                    className="block w-full px-6 py-3 text-white text-center font-bold rounded-xl shadow-lg transition-all"
+                    style={{
+                      backgroundColor: colors.primaryRed,
+                    }}
                     onClick={() => setShowMobileMenu(false)}
                   >
                     Login

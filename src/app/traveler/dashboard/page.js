@@ -313,7 +313,7 @@ function TravelerDashboard() {
 
   if (!userProfile?.verified) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-red-50 py-8">
         <div className="max-w-4xl mx-auto px-4">
           <div className="bg-white rounded-lg shadow p-6 text-center">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -324,7 +324,7 @@ function TravelerDashboard() {
             </p>
             <button
               onClick={() => router.push("/traveler/verification")}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-6 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-900"
             >
               Start Verification
             </button>
@@ -335,7 +335,7 @@ function TravelerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-red-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -343,7 +343,7 @@ function TravelerDashboard() {
             <div className="flex items-center">
               <div className="flex-shrink-0 bg-blue-100 rounded-lg p-3">
                 <svg
-                  className="w-6 h-6 text-blue-600"
+                  className="w-6 h-6 text-blue-800"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -352,7 +352,7 @@ function TravelerDashboard() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
                   />
                 </svg>
               </div>
@@ -367,9 +367,9 @@ function TravelerDashboard() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0 bg-green-100 rounded-lg p-3">
+              <div className="flex-shrink-0 bg-yellow-100 rounded-lg p-3">
                 <svg
-                  className="w-6 h-6 text-green-600"
+                  className="w-6 h-6 text-yellow-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -393,9 +393,9 @@ function TravelerDashboard() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0 bg-purple-100 rounded-lg p-3">
+              <div className="flex-shrink-0 bg-green-100 rounded-lg p-3">
                 <svg
-                  className="w-6 h-6 text-purple-600"
+                  className="w-6 h-6 text-green-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -419,9 +419,9 @@ function TravelerDashboard() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0 bg-yellow-100 rounded-lg p-3">
+              <div className="flex-shrink-0 bg-red-100 rounded-lg p-3">
                 <svg
-                  className="w-6 h-6 text-yellow-600"
+                  className="w-6 h-6 text-red-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -446,7 +446,7 @@ function TravelerDashboard() {
         <div className="mb-8">
           <button
             onClick={() => setShowCreateTrip(true)}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 shadow-lg"
+            className="px-6 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-900 shadow-sm font-medium"
           >
             + Create New Trip
           </button>
@@ -465,7 +465,7 @@ function TravelerDashboard() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <svg
-                      className="w-5 h-5 mr-2 text-blue-600"
+                      className="w-5 h-5 mr-2 text-blue-800"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -494,7 +494,7 @@ function TravelerDashboard() {
                             flightNumber: e.target.value,
                           })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                         placeholder="e.g., QF41, SQ211"
                         required
                       />
@@ -509,7 +509,7 @@ function TravelerDashboard() {
                         onChange={(e) =>
                           setTripData({ ...tripData, airline: e.target.value })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                         placeholder="e.g., Qantas, Singapore Airlines"
                         required
                       />
@@ -528,7 +528,7 @@ function TravelerDashboard() {
                         onChange={(e) =>
                           handleFileUpload("flightItinerary", e.target.files[0])
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                         required={!editingTrip}
                       />
                       {tripData.flightItinerary && (
@@ -553,7 +553,7 @@ function TravelerDashboard() {
                         onChange={(e) =>
                           handleFileUpload("eTicket", e.target.files[0])
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                         required={!editingTrip}
                       />
                       {tripData.eTicket && (
@@ -585,7 +585,7 @@ function TravelerDashboard() {
                           departureDate: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                       required
                     />
                   </div>
@@ -602,7 +602,7 @@ function TravelerDashboard() {
                           arrivalDate: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                       required
                     />
                   </div>
@@ -623,7 +623,7 @@ function TravelerDashboard() {
                           availableWeight: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                       placeholder="e.g., 20"
                       min="1"
                       max="50"
@@ -640,7 +640,7 @@ function TravelerDashboard() {
                       onChange={(e) =>
                         setTripData({ ...tripData, pricePerKg: e.target.value })
                       }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                       placeholder="e.g., 25"
                       min="1"
                       required
@@ -664,7 +664,7 @@ function TravelerDashboard() {
                             type="checkbox"
                             checked={tripData.allowedItems.includes(item)}
                             onChange={() => handleItemToggle(item)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            className="w-4 h-4 text-blue-800 border-gray-300 rounded focus:ring-blue-800"
                           />
                           <span className="text-sm text-gray-700">{item}</span>
                         </label>
@@ -705,7 +705,7 @@ function TravelerDashboard() {
                 </button>
                 <button
                   onClick={editingTrip ? handleUpdateTrip : handleCreateTrip}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-2 bg-blue-800 text-white rounded-lg hover:bg-blue-900 transition-colors"
                 >
                   {editingTrip ? "Update Trip" : "Create Trip"}
                 </button>
@@ -776,7 +776,7 @@ function TravelerDashboard() {
                           </span>
                           <button
                             onClick={() => handleEditTrip(trip)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-2 text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Edit trip"
                           >
                             <svg

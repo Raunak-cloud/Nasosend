@@ -20,6 +20,22 @@ const HowItWorks = () => {
   const [activeTab, setActiveTab] = useState("sender");
   const router = useRouter();
 
+  // A more professional, globally defined color palette
+  const colors = {
+    primaryRed: "#DC143C",
+    primaryRedHover: "#C00A2C",
+    primaryBlue: "#003366",
+    primaryBlueHover: "#002A52",
+    gold: "#FFD700",
+    goldLight: "#FDE68A",
+    white: "#FFFFFF",
+    darkGray: "#2E2E2E",
+    lightGray: "#F5F5F5",
+    borderGray: "#D9D9D9",
+    lighterRed: "#FEEBEB",
+    lighterBlue: "#E5E9EC",
+  };
+
   const senderSteps = [
     {
       icon: <Package className="w-8 h-8" />,
@@ -150,7 +166,7 @@ const HowItWorks = () => {
       price: 25,
       originalPrice: 30,
       description: "Best value for regular users",
-      color: "green",
+      color: "red",
       badge: "Most Popular",
     },
     {
@@ -159,15 +175,20 @@ const HowItWorks = () => {
       price: 45,
       originalPrice: 60,
       description: "For frequent senders",
-      color: "purple",
+      color: "blue",
       badge: "Best Value",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen" style={{ backgroundColor: colors.lightGray }}>
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white py-20">
+      <div
+        className="text-white py-20"
+        style={{
+          background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+        }}
+      >
         <div className="max-w-6xl mx-auto px-6 text-center">
           <h1 className="text-5xl font-bold mb-6">How Nasosend Works</h1>
           <p className="text-xl mb-8 max-w-3xl mx-auto">
@@ -203,26 +224,42 @@ const HowItWorks = () => {
       {/* Tab Navigation */}
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="flex justify-center mb-12">
-          <div className="bg-white rounded-lg p-2 shadow-lg border">
+          <div
+            className="rounded-full p-1 shadow-inner border inline-flex"
+            style={{
+              backgroundColor: colors.white,
+              borderColor: colors.borderGray,
+            }}
+          >
             <button
               onClick={() => setActiveTab("sender")}
-              className={`px-8 py-3 rounded-md font-semibold transition-all ${
+              className={`px-6 py-3 rounded-full font-semibold transition-all flex items-center gap-2 ${
                 activeTab === "sender"
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "text-gray-600 hover:text-blue-600"
+                  ? "text-white shadow-md"
+                  : "text-gray-600 hover:text-[#DC143C]"
               }`}
+              style={{
+                backgroundColor:
+                  activeTab === "sender" ? colors.primaryRed : "transparent",
+              }}
             >
-              I Want to Send Items
+              <Package className="w-5 h-5" />
+              <span>I Want to Send Items</span>
             </button>
             <button
               onClick={() => setActiveTab("traveler")}
-              className={`px-8 py-3 rounded-md font-semibold transition-all ${
+              className={`px-6 py-3 rounded-full font-semibold transition-all flex items-center gap-2 ${
                 activeTab === "traveler"
-                  ? "bg-green-600 text-white shadow-md"
-                  : "text-gray-600 hover:text-green-600"
+                  ? "text-white shadow-md"
+                  : "text-gray-600 hover:text-[#003366]"
               }`}
+              style={{
+                backgroundColor:
+                  activeTab === "traveler" ? colors.primaryBlue : "transparent",
+              }}
             >
-              I'm a Traveler
+              <Plane className="w-5 h-5" />
+              <span>I'm a Traveler</span>
             </button>
           </div>
         </div>
@@ -233,26 +270,42 @@ const HowItWorks = () => {
             (step, index) => (
               <div
                 key={index}
-                className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow"
+                className="rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow"
+                style={{ backgroundColor: colors.white }}
               >
                 <div
-                  className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                    activeTab === "sender"
-                      ? "bg-blue-100 text-blue-600"
-                      : "bg-green-100 text-green-600"
-                  }`}
+                  className={`w-16 h-16 rounded-full flex items-center justify-center mb-4`}
+                  style={{
+                    backgroundColor:
+                      activeTab === "sender"
+                        ? colors.lighterRed
+                        : colors.lighterBlue,
+                    color:
+                      activeTab === "sender"
+                        ? colors.primaryRed
+                        : colors.primaryBlue,
+                  }}
                 >
                   {step.icon}
                 </div>
                 <div className="flex items-center mb-3">
                   <span
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold mr-3 ${
-                      activeTab === "sender" ? "bg-blue-600" : "bg-green-600"
-                    }`}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold mr-3`}
+                    style={{
+                      backgroundColor:
+                        activeTab === "sender"
+                          ? colors.primaryRed
+                          : colors.primaryBlue,
+                    }}
                   >
                     {index + 1}
                   </span>
-                  <h3 className="text-xl font-bold">{step.title}</h3>
+                  <h3
+                    className="text-xl font-bold"
+                    style={{ color: colors.darkGray }}
+                  >
+                    {step.title}
+                  </h3>
                 </div>
                 <p className="text-gray-600 mb-4">{step.description}</p>
                 <ul className="space-y-1">
@@ -273,9 +326,17 @@ const HowItWorks = () => {
 
         {/* Token Packages Section - Only for Sender Tab */}
         {activeTab === "sender" && (
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8 mb-16">
+          <div
+            className="rounded-2xl p-8 mb-16"
+            style={{
+              background: `linear-gradient(to bottom right, ${colors.lighterRed}, ${colors.lighterBlue})`,
+            }}
+          >
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              <h2
+                className="text-3xl font-bold text-gray-900 mb-4"
+                style={{ color: colors.darkGray }}
+              >
                 Choose Your Connection Package
               </h2>
               <p className="text-gray-600 max-w-2xl mx-auto">
@@ -288,26 +349,35 @@ const HowItWorks = () => {
               {tokenPackages.map((pkg, index) => (
                 <div
                   key={index}
-                  className={`relative bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all border-2 ${
-                    pkg.color === "green"
-                      ? "border-green-200"
-                      : pkg.color === "purple"
-                      ? "border-purple-200"
-                      : "border-blue-200"
-                  }`}
+                  className={`relative rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all border-2`}
+                  style={{
+                    backgroundColor: colors.white,
+                    borderColor: pkg.badge
+                      ? pkg.color === "blue"
+                        ? colors.primaryBlue
+                        : colors.primaryRed
+                      : colors.borderGray,
+                  }}
                 >
                   {pkg.badge && (
                     <div
-                      className={`absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-1 text-xs font-bold rounded-full text-white ${
-                        pkg.color === "green" ? "bg-green-600" : "bg-purple-600"
-                      }`}
+                      className={`absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-1 text-xs font-bold rounded-full text-white`}
+                      style={{
+                        backgroundColor:
+                          pkg.color === "blue"
+                            ? colors.primaryBlue
+                            : colors.primaryRed,
+                      }}
                     >
                       {pkg.badge}
                     </div>
                   )}
 
                   <div className="text-center">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    <h3
+                      className="text-xl font-bold text-gray-900 mb-2"
+                      style={{ color: colors.darkGray }}
+                    >
                       {pkg.name}
                     </h3>
                     <p className="text-gray-600 text-sm mb-4">
@@ -315,7 +385,10 @@ const HowItWorks = () => {
                     </p>
 
                     <div className="mb-4">
-                      <div className="text-3xl font-bold text-gray-900">
+                      <div
+                        className="text-3xl font-bold text-gray-900"
+                        style={{ color: colors.darkGray }}
+                      >
                         {pkg.tokens}
                         <span className="text-lg text-gray-600 font-normal">
                           {" "}
@@ -331,7 +404,10 @@ const HowItWorks = () => {
                             ${pkg.originalPrice}
                           </span>
                         )}
-                        <span className="text-2xl font-bold text-gray-900">
+                        <span
+                          className="text-2xl font-bold text-gray-900"
+                          style={{ color: colors.darkGray }}
+                        >
                           ${pkg.price}
                         </span>
                       </div>
@@ -339,7 +415,10 @@ const HowItWorks = () => {
                         ${(pkg.price / pkg.tokens).toFixed(2)} per token
                       </p>
                       {pkg.originalPrice && (
-                        <p className="text-sm text-green-600 font-medium">
+                        <p
+                          className="text-sm font-medium"
+                          style={{ color: colors.primaryBlue }}
+                        >
                           Save ${pkg.originalPrice - pkg.price}!
                         </p>
                       )}
@@ -347,11 +426,17 @@ const HowItWorks = () => {
 
                     <div className="space-y-2 text-sm text-gray-600">
                       <div className="flex items-center justify-center">
-                        <Shield className="w-4 h-4 mr-2 text-green-500" />
+                        <Shield
+                          className="w-4 h-4 mr-2"
+                          style={{ color: colors.primaryBlue }}
+                        />
                         100% refund if no matches
                       </div>
                       <div className="flex items-center justify-center">
-                        <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                        <Clock
+                          className="w-4 h-4 mr-2"
+                          style={{ color: colors.primaryRed }}
+                        />
                         {pkg.tokens <= 5
                           ? "30 days"
                           : pkg.tokens <= 15
@@ -368,19 +453,28 @@ const HowItWorks = () => {
             <div className="text-center mt-8">
               <div className="grid md:grid-cols-4 gap-4 max-w-4xl mx-auto">
                 <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <Shield className="w-5 h-5 text-blue-600" />
+                  <Shield
+                    className="w-5 h-5"
+                    style={{ color: colors.primaryBlue }}
+                  />
                   <span>Secure Payment</span>
                 </div>
                 <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <Clock className="w-5 h-5 text-green-600" />
+                  <Clock
+                    className="w-5 h-5"
+                    style={{ color: colors.primaryRed }}
+                  />
                   <span>Instant Activation</span>
                 </div>
                 <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <Gift className="w-5 h-5 text-purple-600" />
+                  <Gift
+                    className="w-5 h-5"
+                    style={{ color: colors.primaryBlue }}
+                  />
                   <span>Extended Validity</span>
                 </div>
                 <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <Star className="w-5 h-5 text-yellow-600" />
+                  <Star className="w-5 h-5" style={{ color: colors.gold }} />
                   <span>Money Back Guarantee</span>
                 </div>
               </div>
@@ -389,46 +483,96 @@ const HowItWorks = () => {
         )}
 
         {/* Process Flow */}
-        <div className="bg-white rounded-2xl p-8 shadow-lg mb-16">
-          <h2 className="text-3xl font-bold text-center mb-8">
+        <div
+          className="rounded-2xl p-8 shadow-lg mb-16"
+          style={{ backgroundColor: colors.white }}
+        >
+          <h2
+            className="text-3xl font-bold text-center mb-8"
+            style={{ color: colors.darkGray }}
+          >
             The Complete Process
           </h2>
           <div className="flex flex-col lg:flex-row items-center justify-between space-y-8 lg:space-y-0 lg:space-x-8">
             <div className="flex-1 text-center">
-              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Package className="w-10 h-10 text-blue-600" />
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ backgroundColor: colors.lighterBlue }}
+              >
+                <Package
+                  className="w-10 h-10"
+                  style={{ color: colors.primaryBlue }}
+                />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Item Posted</h3>
+              <h3
+                className="text-lg font-semibold mb-2"
+                style={{ color: colors.darkGray }}
+              >
+                Item Posted
+              </h3>
               <p className="text-gray-600">
                 Sender creates listing with details and budget
               </p>
             </div>
             <ArrowRight className="w-8 h-8 text-gray-400 hidden lg:block" />
             <div className="flex-1 text-center">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-10 h-10 text-green-600" />
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ backgroundColor: colors.lighterRed }}
+              >
+                <Users
+                  className="w-10 h-10"
+                  style={{ color: colors.primaryRed }}
+                />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Match Made</h3>
+              <h3
+                className="text-lg font-semibold mb-2"
+                style={{ color: colors.darkGray }}
+              >
+                Match Made
+              </h3>
               <p className="text-gray-600">
                 Traveler accepts request, direct payment arranged
               </p>
             </div>
             <ArrowRight className="w-8 h-8 text-gray-400 hidden lg:block" />
             <div className="flex-1 text-center">
-              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Plane className="w-10 h-10 text-purple-600" />
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ backgroundColor: colors.lighterBlue }}
+              >
+                <Plane
+                  className="w-10 h-10"
+                  style={{ color: colors.primaryBlue }}
+                />
               </div>
-              <h3 className="text-lg font-semibold mb-2">In Transit</h3>
+              <h3
+                className="text-lg font-semibold mb-2"
+                style={{ color: colors.darkGray }}
+              >
+                In Transit
+              </h3>
               <p className="text-gray-600">
                 Item picked up and traveling to Nepal
               </p>
             </div>
             <ArrowRight className="w-8 h-8 text-gray-400 hidden lg:block" />
             <div className="flex-1 text-center">
-              <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-10 h-10 text-orange-600" />
+              <div
+                className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ backgroundColor: colors.lighterRed }}
+              >
+                <CheckCircle
+                  className="w-10 h-10"
+                  style={{ color: colors.primaryRed }}
+                />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Delivered</h3>
+              <h3
+                className="text-lg font-semibold mb-2"
+                style={{ color: colors.darkGray }}
+              >
+                Delivered
+              </h3>
               <p className="text-gray-600">
                 Item delivered, traveler paid directly by sender
               </p>
@@ -438,19 +582,33 @@ const HowItWorks = () => {
 
         {/* Benefits Grid */}
         <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-12">
+          <h2
+            className="text-3xl font-bold text-center mb-12"
+            style={{ color: colors.darkGray }}
+          >
             Why Choose Nasosend?
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {benefits.map((benefit, index) => (
               <div
                 key={index}
-                className="bg-white rounded-lg p-6 text-center shadow-md hover:shadow-lg transition-shadow"
+                className="rounded-lg p-6 text-center shadow-md hover:shadow-lg transition-shadow"
+                style={{ backgroundColor: colors.white }}
               >
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-green-500 rounded-full flex items-center justify-center text-white mx-auto mb-4">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white mx-auto mb-4"
+                  style={{
+                    background: `linear-gradient(to bottom right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+                  }}
+                >
                   {benefit.icon}
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{benefit.title}</h3>
+                <h3
+                  className="text-lg font-semibold mb-2"
+                  style={{ color: colors.darkGray }}
+                >
+                  {benefit.title}
+                </h3>
                 <p className="text-gray-600">{benefit.description}</p>
               </div>
             ))}
@@ -458,7 +616,12 @@ const HowItWorks = () => {
         </div>
 
         {/* Safety & Security */}
-        <div className="bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl p-8 text-white mb-16">
+        <div
+          className="rounded-2xl p-8 text-white mb-16"
+          style={{
+            background: `linear-gradient(to right, ${colors.primaryBlue}, ${colors.primaryRed})`,
+          }}
+        >
           <div className="max-w-4xl mx-auto text-center">
             <Shield className="w-16 h-16 mx-auto mb-6" />
             <h2 className="text-3xl font-bold mb-6">
@@ -494,7 +657,10 @@ const HowItWorks = () => {
 
         {/* Testimonials */}
         <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-12">
+          <h2
+            className="text-3xl font-bold text-center mb-12"
+            style={{ color: colors.darkGray }}
+          >
             What Our Users Say
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -521,18 +687,28 @@ const HowItWorks = () => {
                 rating: 5,
               },
             ].map((testimonial, index) => (
-              <div key={index} className="bg-white rounded-lg p-6 shadow-md">
+              <div
+                key={index}
+                className="rounded-lg p-6 shadow-md"
+                style={{ backgroundColor: colors.white }}
+              >
                 <div className="flex items-center mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star
                       key={i}
-                      className="w-5 h-5 text-yellow-400 fill-current"
+                      className="w-5 h-5 fill-current"
+                      style={{ color: colors.gold }}
                     />
                   ))}
                 </div>
                 <p className="text-gray-600 mb-4">"{testimonial.content}"</p>
                 <div>
-                  <p className="font-semibold">{testimonial.name}</p>
+                  <p
+                    className="font-semibold"
+                    style={{ color: colors.darkGray }}
+                  >
+                    {testimonial.name}
+                  </p>
                   <p className="text-sm text-gray-500">{testimonial.role}</p>
                 </div>
               </div>
@@ -542,20 +718,33 @@ const HowItWorks = () => {
 
         {/* CTA Section */}
         <div className="text-center">
-          <h2 className="text-3xl font-bold mb-6">Ready to Get Started?</h2>
+          <h2
+            className="text-3xl font-bold mb-6"
+            style={{ color: colors.darkGray }}
+          >
+            Ready to Get Started?
+          </h2>
           <p className="text-xl text-gray-600 mb-8">
             Be among the first to experience seamless crowdshipping
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => router.push("/dashboard")}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg transition-colors"
+              className="text-white font-bold py-4 px-8 rounded-lg transition-colors"
+              style={{
+                backgroundColor: colors.primaryRed,
+                hoverBackgroundColor: colors.primaryRedHover,
+              }}
             >
               Send an Item
             </button>
             <button
               onClick={() => router.push("/dashboard")}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-lg transition-colors"
+              className="text-white font-bold py-4 px-8 rounded-lg transition-colors"
+              style={{
+                backgroundColor: colors.primaryBlue,
+                hoverBackgroundColor: colors.primaryBlueHover,
+              }}
             >
               Become a Traveler
             </button>
