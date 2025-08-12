@@ -19,7 +19,7 @@ export async function POST(request) {
       port: 587, // Port for TLS
       secure: false, // Use 'true' for port 465, but 587 is common for TLS
       auth: {
-        user: "sendemail",
+        user: "apikey",
         pass: process.env.SENDGRID_API_KEY,
       },
     });
