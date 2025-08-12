@@ -28,48 +28,24 @@ const BuyTokens = ({ isOpen, onClose, currentTokens, onTokensPurchased }) => {
     {
       id: "starter",
       name: "Starter Pack",
-      tokens: 5,
-      price: 10,
+      tokens: 1,
+      price: 2,
       originalPrice: null,
-      description: "Perfect for occasional senders",
-      features: [
-        "Connect with up to 5 travelers",
-        "30-day token validity",
-        "Email support",
-        "Basic tracking",
-      ],
+      description: "Perfect for first-time users",
+      features: ["Connect with 1 traveler", "Simple and affordable"],
       badge: null,
       color: "blue",
     },
     {
-      id: "popular",
-      name: "Popular Pack",
-      tokens: 15,
-      price: 25,
-      originalPrice: 30,
+      id: "regular",
+      name: "Regular Senders",
+      tokens: 5,
+      price: 5,
+      originalPrice: 10,
       description: "Best value for regular users",
-      features: [
-        "Connect with up to 25 travelers",
-        "3 months token validity",
-        "Priority support",
-      ],
+      features: ["Connect with up to 5 travelers", "Great value package"],
       badge: "Most Popular",
       color: "green",
-    },
-    {
-      id: "premium",
-      name: "Premium Pack",
-      tokens: 30,
-      price: 45,
-      originalPrice: 60,
-      description: "For frequent senders and businesses",
-      features: [
-        "Connect with up to 45 travelers",
-        "1 year token validity",
-        "24/7 priority support",
-      ],
-      badge: "Best Value",
-      color: "purple",
     },
   ];
 
@@ -151,7 +127,7 @@ const BuyTokens = ({ isOpen, onClose, currentTokens, onTokensPurchased }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
         {!showPaymentForm ? (
           // Package Selection
           <div className="p-8">
@@ -172,44 +148,30 @@ const BuyTokens = ({ isOpen, onClose, currentTokens, onTokensPurchased }) => {
 
             {/* Current Tokens Display */}
             <div className="bg-gray-50 rounded-lg p-4 mb-8">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-center">
+                <div className="text-center">
                   <p className="text-sm text-gray-600">Current Balance</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {currentTokens} Tokens
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Expires</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {new Date(
-                      Date.now() + 30 * 24 * 60 * 60 * 1000
-                    ).toLocaleDateString("en-AU")}
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Token Packages */}
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <div className="grid md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
               {tokenPackages.map((pkg) => (
                 <div
                   key={pkg.id}
                   className={`relative border-2 rounded-xl p-6 cursor-pointer transition-all hover:shadow-lg ${
                     pkg.color === "green"
                       ? "border-green-200 bg-green-50"
-                      : pkg.color === "purple"
-                      ? "border-purple-200 bg-purple-50"
                       : "border-gray-200 bg-white"
                   }`}
                   onClick={() => handlePackageSelect(pkg)}
                 >
                   {pkg.badge && (
-                    <div
-                      className={`absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-1 text-xs font-bold rounded-full text-white ${
-                        pkg.color === "green" ? "bg-green-600" : "bg-purple-600"
-                      }`}
-                    >
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-1 text-xs font-bold rounded-full text-white bg-green-600">
                       {pkg.badge}
                     </div>
                   )}
@@ -227,7 +189,7 @@ const BuyTokens = ({ isOpen, onClose, currentTokens, onTokensPurchased }) => {
                         {pkg.tokens}
                         <span className="text-lg text-gray-600 font-normal">
                           {" "}
-                          tokens
+                          {pkg.tokens === 1 ? "token" : "tokens"}
                         </span>
                       </div>
                     </div>
@@ -248,7 +210,7 @@ const BuyTokens = ({ isOpen, onClose, currentTokens, onTokensPurchased }) => {
                       </p>
                       {pkg.originalPrice && (
                         <p className="text-sm text-green-600 font-medium mt-1">
-                          Save ${pkg.originalPrice - pkg.price}!
+                          Save ${pkg.originalPrice - pkg.price} (50% off)!
                         </p>
                       )}
                     </div>
@@ -267,8 +229,6 @@ const BuyTokens = ({ isOpen, onClose, currentTokens, onTokensPurchased }) => {
                     className={`w-full py-3 rounded-lg font-semibold transition-colors ${
                       pkg.color === "green"
                         ? "bg-green-600 text-white hover:bg-green-700"
-                        : pkg.color === "purple"
-                        ? "bg-purple-600 text-white hover:bg-purple-700"
                         : "bg-blue-600 text-white hover:bg-blue-700"
                     }`}
                   >
@@ -299,16 +259,18 @@ const BuyTokens = ({ isOpen, onClose, currentTokens, onTokensPurchased }) => {
               <div className="text-center">
                 <Gift className="w-8 h-8 text-purple-600 mx-auto mb-2" />
                 <h4 className="font-semibold text-gray-900 mb-1">
-                  No Expiry Stress
+                  No Hidden Fees
                 </h4>
                 <p className="text-sm text-gray-600">
-                  Extended validity periods
+                  What you see is what you pay
                 </p>
               </div>
               <div className="text-center">
                 <Star className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
                 <h4 className="font-semibold text-gray-900 mb-1">Money Back</h4>
-                <p className="text-sm text-gray-600">100% refund guarantee</p>
+                <p className="text-sm text-gray-600">
+                  100% refund if no matches made
+                </p>
               </div>
             </div>
           </div>
@@ -325,14 +287,16 @@ const BuyTokens = ({ isOpen, onClose, currentTokens, onTokensPurchased }) => {
                   Payment Successful!
                 </h2>
                 <p className="text-lg text-gray-600 mb-6">
-                  {selectedPackage.tokens} tokens have been credited to your
-                  account
+                  {selectedPackage.tokens}{" "}
+                  {selectedPackage.tokens === 1 ? "token has" : "tokens have"}{" "}
+                  been credited to your account
                 </p>
                 <div className="bg-green-50 rounded-lg p-6 max-w-md mx-auto">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">Tokens Purchased:</span>
                     <span className="font-bold text-green-600">
-                      {selectedPackage.tokens} tokens
+                      {selectedPackage.tokens}{" "}
+                      {selectedPackage.tokens === 1 ? "token" : "tokens"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-2">
@@ -385,7 +349,8 @@ const BuyTokens = ({ isOpen, onClose, currentTokens, onTokensPurchased }) => {
                       <div className="flex justify-between">
                         <span className="text-gray-700">Tokens</span>
                         <span className="font-semibold">
-                          {selectedPackage?.tokens} tokens
+                          {selectedPackage?.tokens}{" "}
+                          {selectedPackage?.tokens === 1 ? "token" : "tokens"}
                         </span>
                       </div>
                       <div className="flex justify-between">

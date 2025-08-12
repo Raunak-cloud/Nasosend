@@ -67,13 +67,6 @@ const Footer = () => {
               >
                 Safety Guidelines
               </a>
-
-              <a
-                href="/prohibited-items"
-                className="block text-gray-300 hover:text-white transition-colors"
-              >
-                Prohibited Items
-              </a>
             </div>
           </div>
 

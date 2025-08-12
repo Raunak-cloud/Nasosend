@@ -467,10 +467,7 @@ export default function GlobalNavigation() {
         <div className="flex justify-between items-center h-16 sm:h-20">
           {/* Logo and Main Nav */}
           <div className="flex items-center min-w-0">
-            <Link
-              href="/dashboard"
-              className="flex items-center group flex-shrink-0"
-            >
+            <Link href="/" className="flex items-center group flex-shrink-0">
               <div className="relative">
                 <Image
                   src="/nasosend.png"

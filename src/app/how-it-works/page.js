@@ -1,4 +1,4 @@
-// `use client` is used to indicate that this component should be rendered on the client side.
+//app/how-it-works/page.js
 "use client";
 
 import React, { useState } from "react";
@@ -112,11 +112,11 @@ const HowItWorks = () => {
     {
       title: "Buy Connection Tokens",
       description:
-        "Purchase tokens to connect with multiple travelers, starting from just $10 AUD for 5 connections.",
+        "Purchase tokens to connect with multiple travelers, starting from just $2 AUD for 1 connection.",
       details: [
-        "Starter Pack: 5 tokens for $10",
-        "100% refund if no matches found",
-        "Tokens valid for up to 1 year",
+        "Starter Pack: 1 token for $2",
+        "Regular Senders: 5 tokens for $5 (Save $5!)",
+        "100% refund if no matches made",
       ],
     },
     {
@@ -173,31 +173,19 @@ const HowItWorks = () => {
   const tokenPackages = [
     {
       name: "Starter Pack",
-      tokens: 5,
-      price: 10,
-      description: "Perfect for occasional senders",
+      tokens: 1,
+      price: 2,
+      description: "Perfect for first-time users",
       color: colors.primaryBlue,
-      validity: "30 days",
     },
     {
-      name: "Popular Pack",
-      tokens: 15,
-      price: 25,
-      originalPrice: 30,
+      name: "Regular Senders",
+      tokens: 5,
+      price: 5,
+      originalPrice: 10,
       description: "Best value for regular users",
       color: colors.primaryRed,
       badge: "Most Popular",
-      validity: "3 months",
-    },
-    {
-      name: "Premium Pack",
-      tokens: 30,
-      price: 45,
-      originalPrice: 60,
-      description: "For frequent senders",
-      color: colors.primaryBlue,
-      badge: "Best Value",
-      validity: "1 year",
     },
   ];
 
@@ -337,7 +325,7 @@ const HowItWorks = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               {tokenPackages.map((pkg, index) => (
                 <div
                   key={index}
@@ -375,7 +363,7 @@ const HowItWorks = () => {
                         {pkg.tokens}
                         <span className="text-lg text-gray-600 font-normal">
                           {" "}
-                          tokens
+                          {pkg.tokens === 1 ? "token" : "tokens"}
                         </span>
                       </div>
                     </div>
@@ -401,7 +389,7 @@ const HowItWorks = () => {
                           className="text-sm font-medium"
                           style={{ color: pkg.color }}
                         >
-                          Save ${pkg.originalPrice - pkg.price}!
+                          Save ${pkg.originalPrice - pkg.price} (50% off)!
                         </p>
                       )}
                     </div>
@@ -411,14 +399,14 @@ const HowItWorks = () => {
                           className="w-4 h-4 mr-2"
                           style={{ color: colors.primaryBlue }}
                         />
-                        100% refund if no matches
+                        100% refund if no matches made
                       </div>
                       <div className="flex items-center justify-center">
                         <Clock
                           className="w-4 h-4 mr-2"
                           style={{ color: colors.primaryRed }}
                         />
-                        {pkg.validity} validity
+                        Instant activation
                       </div>
                     </div>
                   </div>

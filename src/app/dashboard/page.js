@@ -118,7 +118,7 @@ export default function DashboardPage() {
         ></div>
       </div>
 
-      <div className="relative max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-8">
+      <div className="relative mt-4 max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-8">
         {/* Compact Welcome Header */}
         <div
           className={`text-center mb-8 sm:mb-12 ${
@@ -126,26 +126,6 @@ export default function DashboardPage() {
           }`}
         >
           <div className="mb-4 sm:mb-6">
-            <div
-              className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl shadow-md mb-3 sm:mb-4"
-              style={{
-                background: `linear-gradient(to bottom right, ${colors.primaryBlue}, ${colors.primaryRed})`,
-              }}
-            >
-              <svg
-                className="w-6 h-6 sm:w-8 sm:h-8 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                />
-              </svg>
-            </div>
             <h1
               className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2"
               style={{ color: colors.primaryBlue }}
@@ -161,7 +141,7 @@ export default function DashboardPage() {
               )}
             </h1>
             <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed px-4">
-              Choose your adventure and connect with our trusted community
+              Choose your role and connect with our trusted community
             </p>
           </div>
         </div>
@@ -735,7 +715,7 @@ export default function DashboardPage() {
                 className="text-lg sm:text-xl font-bold mb-2"
                 style={{ color: colors.darkGray }}
               >
-                Need Help Choosing?
+                Have any questions?
               </h3>
               <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-4">
                 We're here to guide you through your journey with comprehensive
