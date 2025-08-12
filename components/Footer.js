@@ -60,7 +60,12 @@ const Footer = () => {
               >
                 How it Works
               </a>
-
+              <a
+                href="/investors"
+                className="block text-gray-300 hover:text-white transition-colors"
+              >
+                Investors
+              </a>
               <a
                 href="/safety"
                 className="block text-gray-300 hover:text-white transition-colors"
