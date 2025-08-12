@@ -1,24 +1,25 @@
+//app/sender/dashboard/page.js
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { db } from "@/lib/firebase";
 import {
   collection,
   query,
   where,
   getDocs,
+  orderBy,
+  doc,
   addDoc,
   serverTimestamp,
-  orderBy,
 } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import BuyTokens from "@/components/BuyTokens";
 import {
   Package,
   Plane,
   Users,
-  Shield,
   CheckCircle,
   ArrowRight,
   MapPin,
@@ -51,29 +52,26 @@ export default function SenderDashboardPage() {
     recipientName: "",
     recipientPhone: "",
     recipientAddress: "",
+    pickupCity: "",
     notes: "",
   });
   const [showBuyTokens, setShowBuyTokens] = useState(false);
-  // New state to manage the visibility of contact details for each request
   const [showContact, setShowContact] = useState({});
 
-  // Custom modal state for alerts
   const [showNotification, setShowNotification] = useState({
     isVisible: false,
     message: "",
     type: "info",
   });
 
-  // Filter states
   const [filters, setFilters] = useState({
-    gender: "",
-    pricePerKg: 100, // Max price per kg
+    pricePerKg: 100,
     itemPreferences: [],
+    pickupCities: [],
   });
   const [showFilters, setShowFilters] = useState(false);
   const [expandedItems, setExpandedItems] = useState({});
 
-  // Legal items for item preference filter
   const legalItems = [
     "Clothing and textiles",
     "Baby formula and food",
@@ -87,6 +85,19 @@ export default function SenderDashboardPage() {
     "Stationery and office supplies",
     "Traditional Australian souvenirs",
     "Handicrafts and small gifts",
+  ];
+
+  const nepalCities = [
+    "Kathmandu",
+    "Pokhara",
+    "Lalitpur",
+    "Biratnagar",
+    "Bharatpur",
+    "Birgunj",
+    "Butwal",
+    "Dharan",
+    "Hetauda",
+    "Dhangadhi",
   ];
 
   const colors = {
@@ -105,10 +116,9 @@ export default function SenderDashboardPage() {
     lighterBlue: "#F0F4F8",
   };
 
-  // Token information
   const [tokenInfo, setTokenInfo] = useState({
     availableTokens: 10,
-    expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+    expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
 
   useEffect(() => {
@@ -121,8 +131,6 @@ export default function SenderDashboardPage() {
     if (!user) return;
 
     try {
-      console.log("🔍 Fetching trips for user:", user.uid);
-
       const q = query(
         collection(db, "trips"),
         where("status", "==", "active"),
@@ -130,30 +138,17 @@ export default function SenderDashboardPage() {
       );
 
       const querySnapshot = await getDocs(q);
-      console.log("📊 Raw snapshot size:", querySnapshot.size);
-
       const tripsData = [];
       querySnapshot.forEach((doc) => {
         const tripData = { id: doc.id, ...doc.data() };
-        console.log("🎯 Processing trip:", {
-          id: tripData.id,
-          travelerName: tripData.travelerName,
-          travelerId: tripData.travelerId,
-          currentUserId: user.uid,
-          isOwnTrip: tripData.travelerId === user.uid,
-        });
-
         if (tripData.travelerId !== user.uid) {
           tripsData.push(tripData);
         }
       });
 
-      console.log("✅ Final trips data:", tripsData);
-      console.log("📈 Number of available trips:", tripsData.length);
-
       setAvailableTrips(tripsData);
     } catch (error) {
-      console.error("❌ Error fetching trips:", error);
+      console.error("Error fetching trips:", error);
       setShowNotification({
         isVisible: true,
         message: "Failed to fetch available trips. Please try again later.",
@@ -193,16 +188,13 @@ export default function SenderDashboardPage() {
     }
   }, [user, fetchAvailableTrips, fetchMyRequests]);
 
-  // If still loading or no user, don't render anything (AuthWrapper handles loading)
   if (loading || !user) {
     return null;
   }
 
-  // Handle the request submission
   const handleSendRequest = async () => {
     if (!selectedTrip) return;
 
-    // --- Client-side validation ---
     if (tokenInfo.availableTokens <= 0) {
       setShowNotification({
         isVisible: true,
@@ -212,13 +204,14 @@ export default function SenderDashboardPage() {
       });
       return;
     }
-    console.log("REQUESSSSSSt", requestData);
+
     if (
       !requestData.itemDescription ||
       !requestData.weight ||
       !requestData.recipientName ||
       !requestData.recipientPhone ||
-      !requestData.recipientAddress
+      !requestData.recipientAddress ||
+      !requestData.pickupCity
     ) {
       setShowNotification({
         isVisible: true,
@@ -250,30 +243,40 @@ export default function SenderDashboardPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/send-request", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          requestData,
-          selectedTrip,
-          senderId: user.uid,
-          senderName:
-            userProfile?.verification?.fullName ||
-            user.email?.split("@")[0] ||
-            "Unknown Sender",
-          senderEmail: user.email || "guitartap132@gmail.com",
-        }),
-      });
+      // Correctly access traveler's email from the selected trip object.
+      // The traveler's email should be stored in the trip document when it's created.
+      // Since the traveler's email is part of their Firebase Auth user object,
+      // you can either save it with the trip document, or fetch it here.
+      // The most reliable method is to save it with the trip, so let's assume
+      // that's in place.
+      const travelerEmail =
+        selectedTrip.travelerEmail || "traveler@example.com";
 
-      const result = await response.json();
+      const requestPayload = {
+        ...requestData,
+        tripId: selectedTrip.id,
+        travelerId: selectedTrip.travelerId,
+        travelerName: selectedTrip.travelerName,
+        travelerPhone: selectedTrip.travelerPhone,
+        travelerEmail: travelerEmail,
+        departureDate: selectedTrip.departureDate,
+        arrivalDate: selectedTrip.arrivalDate,
+        flightNumber: selectedTrip.flightNumber,
+        pricePerKg: selectedTrip.pricePerKg,
+        availableWeight: selectedTrip.availableWeight,
+        senderId: user.uid,
+        senderName:
+          userProfile.verification?.fullName ||
+          user.email?.split("@")[0] ||
+          "Unknown Sender",
+        senderEmail: user.email, // Use user.email directly from authentication
+        status: "pending",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to send request.");
-      }
+      await addDoc(collection(db, "shipmentRequests"), requestPayload);
 
-      // Update local state on success
       setTokenInfo((prev) => ({
         ...prev,
         availableTokens: prev.availableTokens - 1,
@@ -288,10 +291,10 @@ export default function SenderDashboardPage() {
         recipientName: "",
         recipientPhone: "",
         recipientAddress: "",
+        pickupCity: "",
         notes: "",
       });
 
-      // Show success notification
       setShowNotification({
         isVisible: true,
         message:
@@ -301,7 +304,7 @@ export default function SenderDashboardPage() {
 
       await fetchMyRequests();
     } catch (error) {
-      console.error("❌ Error sending request:", error);
+      console.error("Error sending request:", error);
       setShowNotification({
         isVisible: true,
         message: `Failed to send request: ${error.message}`,
@@ -330,14 +333,28 @@ export default function SenderDashboardPage() {
     });
   };
 
+  const handleFilterChange = (filterName, value) => {
+    if (filterName === "itemPreferences" || filterName === "pickupCities") {
+      setFilters((prevFilters) => ({
+        ...prevFilters,
+        [filterName]: prevFilters[filterName].includes(value)
+          ? prevFilters[filterName].filter((item) => item !== value)
+          : [...prevFilters[filterName], value],
+      }));
+    } else {
+      setFilters((prevFilters) => ({ ...prevFilters, [filterName]: value }));
+    }
+  };
+
   const filteredTrips = availableTrips.filter((trip) => {
-    const genderMatch =
-      filters.gender === "" || trip.travelerGender === filters.gender;
     const priceMatch = trip.pricePerKg <= filters.pricePerKg;
     const itemMatch =
       filters.itemPreferences.length === 0 ||
       filters.itemPreferences.every((item) => trip.allowedItems.includes(item));
-    return genderMatch && priceMatch && itemMatch;
+    const pickupCityMatch =
+      filters.pickupCities.length === 0 ||
+      filters.pickupCities.some((city) => trip.pickupCities.includes(city));
+    return priceMatch && itemMatch && pickupCityMatch;
   });
 
   const toggleItems = (tripId) => {
@@ -347,7 +364,6 @@ export default function SenderDashboardPage() {
     }));
   };
 
-  // Toggle contact info visibility
   const toggleContactInfo = (requestId) => {
     setShowContact((prev) => ({
       ...prev,
@@ -358,7 +374,6 @@ export default function SenderDashboardPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: colors.lightGray }}>
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
-        {/* Compact Header */}
         <div className="mb-6 sm:mb-8">
           <h1
             className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2"
@@ -371,7 +386,6 @@ export default function SenderDashboardPage() {
           </p>
         </div>
 
-        {/* Verification Status Banner */}
         {!userProfile?.verified && (
           <div
             className="mb-6 sm:mb-8 p-4 sm:p-6 rounded-lg sm:rounded-xl border"
@@ -424,7 +438,6 @@ export default function SenderDashboardPage() {
           </div>
         )}
 
-        {/* Token Information Banner */}
         <div
           className="relative overflow-hidden rounded-lg sm:rounded-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 text-white shadow-lg"
           style={{
@@ -506,7 +519,7 @@ export default function SenderDashboardPage() {
             setTokenInfo((prev) => ({
               ...prev,
               availableTokens: prev.availableTokens + tokens,
-              expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Reset expiry
+              expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             }));
             setShowNotification({
               isVisible: true,
@@ -516,7 +529,6 @@ export default function SenderDashboardPage() {
           }}
         />
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           <div
             className="bg-white rounded-lg sm:rounded-xl shadow-md border p-3 sm:p-4 lg:p-6 hover:shadow-lg transition-all duration-300"
@@ -637,12 +649,10 @@ export default function SenderDashboardPage() {
           </div>
         </div>
 
-        {/* Main Content */}
         <div
           className="bg-white rounded-lg sm:rounded-xl shadow-lg border overflow-hidden"
           style={{ borderColor: colors.borderGray }}
         >
-          {/* Tabs */}
           <div
             className="border-b"
             style={{
@@ -684,7 +694,7 @@ export default function SenderDashboardPage() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                      d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
                     />
                   </svg>
                   <span className="hidden sm:inline">Available Travelers</span>
@@ -755,7 +765,6 @@ export default function SenderDashboardPage() {
           <div className="p-4 sm:p-6 lg:p-8">
             {activeTab === "available" ? (
               <div>
-                {/* Filters Section */}
                 <div className="mb-6 sm:mb-8">
                   <div className="flex items-center justify-between mb-4">
                     <h3
@@ -774,26 +783,6 @@ export default function SenderDashboardPage() {
                   </div>
                   {showFilters && (
                     <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-                      {/* Gender Preference */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Gender Preference
-                        </label>
-                        <select
-                          value={filters.gender}
-                          onChange={(e) =>
-                            setFilters({ ...filters, gender: e.target.value })
-                          }
-                          className="w-full p-2 border border-gray-300 rounded-md"
-                        >
-                          <option value="">No Preference</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-
-                      {/* Price Per Kg */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Price per Kg (Max: ${filters.pricePerKg})
@@ -813,7 +802,30 @@ export default function SenderDashboardPage() {
                         />
                       </div>
 
-                      {/* Item Preference */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Pickup City in Nepal
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {nepalCities.map((city) => (
+                            <button
+                              key={city}
+                              type="button"
+                              onClick={() =>
+                                handleFilterChange("pickupCities", city)
+                              }
+                              className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                filters.pickupCities.includes(city)
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              }`}
+                            >
+                              {city}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Item Preference
@@ -823,20 +835,9 @@ export default function SenderDashboardPage() {
                             <button
                               key={item}
                               type="button"
-                              onClick={() => {
-                                setFilters((prevFilters) => {
-                                  const newItemPreferences =
-                                    prevFilters.itemPreferences.includes(item)
-                                      ? prevFilters.itemPreferences.filter(
-                                          (i) => i !== item
-                                        )
-                                      : [...prevFilters.itemPreferences, item];
-                                  return {
-                                    ...prevFilters,
-                                    itemPreferences: newItemPreferences,
-                                  };
-                                });
-                              }}
+                              onClick={() =>
+                                handleFilterChange("itemPreferences", item)
+                              }
                               className={`px-3 py-1 text-sm rounded-full transition-colors ${
                                 filters.itemPreferences.includes(item)
                                   ? "bg-blue-600 text-white"
@@ -914,7 +915,6 @@ export default function SenderDashboardPage() {
                       className="group bg-white border border-gray-200 rounded-xl hover:shadow-lg hover:border-blue-300 transition-all duration-300 transform hover:-translate-y-1"
                     >
                       <div className="p-4 flex flex-col h-full">
-                        {/* Header with traveler info and price */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center flex-1 min-w-0">
                             <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
@@ -946,7 +946,6 @@ export default function SenderDashboardPage() {
                           </div>
                         </div>
 
-                        {/* Route information */}
                         <div className="flex items-center justify-between text-xs text-gray-600 mb-3">
                           <div className="flex items-center flex-1 min-w-0">
                             <MapPin className="w-3 h-3 mr-1 text-gray-400 flex-shrink-0" />
@@ -961,11 +960,9 @@ export default function SenderDashboardPage() {
                           </div>
                         </div>
 
-                        {/* Available weight */}
                         <div className="flex items-center justify-center mb-3">
                           <div className="bg-blue-50 px-3 py-1 rounded-full">
                             <span className="text-xs font-medium text-blue-700">
-                              {/* Handle NaN case and provide fallback */}
                               {trip.availableWeight &&
                               !isNaN(trip.availableWeight)
                                 ? `${trip.availableWeight} kg available`
@@ -976,7 +973,6 @@ export default function SenderDashboardPage() {
                           </div>
                         </div>
 
-                        {/* Travel dates */}
                         <div className="mb-4">
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div className="text-center p-2 bg-gray-50 rounded-lg">
@@ -1020,7 +1016,6 @@ export default function SenderDashboardPage() {
                           </div>
                         </div>
 
-                        {/* Allowed items */}
                         <div className="flex-1">
                           <div className="flex justify-between items-center mb-2">
                             <p className="text-xs font-medium text-gray-700">
@@ -1063,8 +1058,33 @@ export default function SenderDashboardPage() {
                             </div>
                           </div>
                         </div>
+                        <div className="flex-1 mt-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <p className="text-xs font-medium text-gray-700">
+                              Pickup Cities:
+                            </p>
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            <div className="flex flex-wrap gap-1">
+                              {trip.pickupCities &&
+                              trip.pickupCities.length > 0 ? (
+                                trip.pickupCities.map((city, index) => (
+                                  <span
+                                    key={index}
+                                    className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
+                                  >
+                                    {city}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-gray-400 italic">
+                                  No pickup cities specified
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
 
-                        {/* Send request button */}
                         <button
                           onClick={() => {
                             if (!userProfile?.verified) {
@@ -1195,6 +1215,10 @@ export default function SenderDashboardPage() {
                               {request.recipientAddress}
                             </p>
                             <p>
+                              <span className="font-medium">Pickup City:</span>{" "}
+                              {request.pickupCity}
+                            </p>
+                            <p>
                               <span className="font-medium">Departure:</span>{" "}
                               {new Date(
                                 request.departureDate
@@ -1210,7 +1234,6 @@ export default function SenderDashboardPage() {
                         </div>
                       </div>
 
-                      {/* Contact Traveler button and info */}
                       {request.status === "accepted" && (
                         <div className="mt-4 pt-4 border-t border-gray-200">
                           <button
@@ -1310,7 +1333,6 @@ export default function SenderDashboardPage() {
           </div>
         </div>
 
-        {/* Request Modal */}
         {showRequestModal && selectedTrip && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 z-50 backdrop-blur-sm">
             <div className="bg-white rounded-lg sm:rounded-2xl max-w-2xl w-full max-h-[95vh] overflow-y-auto shadow-xl">
@@ -1534,6 +1556,36 @@ export default function SenderDashboardPage() {
                       className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2"
                       style={{ color: colors.darkGray }}
                     >
+                      Pickup City in Nepal *
+                    </label>
+                    <select
+                      value={requestData.pickupCity}
+                      onChange={(e) =>
+                        setRequestData({
+                          ...requestData,
+                          pickupCity: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-800 focus:border-transparent transition-all text-sm sm:text-base"
+                      style={{ borderColor: colors.borderGray }}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select a city
+                      </option>
+                      {selectedTrip.pickupCities.map((city) => (
+                        <option key={city} value={city}>
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2"
+                      style={{ color: colors.darkGray }}
+                    >
                       Special Instructions (Optional)
                     </label>
                     <textarea
@@ -1611,7 +1663,6 @@ export default function SenderDashboardPage() {
           </div>
         )}
 
-        {/* Custom Notification Modal */}
         {showNotification.isVisible && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div

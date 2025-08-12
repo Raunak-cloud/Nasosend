@@ -1,3 +1,5 @@
+//app/travelers/dashboard/page.js
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -14,6 +16,9 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
+  getDoc,
 } from "firebase/firestore";
 import {
   Plane,
@@ -41,7 +46,7 @@ function TravelerDashboard() {
   const [editingTrip, setEditingTrip] = useState(null);
   const [trips, setTrips] = useState([]);
   const [incomingRequests, setIncomingRequests] = useState([]);
-  const [activeTab, setActiveTab] = useState("trips"); // New state for tabs
+  const [activeTab, setActiveTab] = useState("trips");
   const [showRequestDetailsModal, setShowRequestDetailsModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [tripData, setTripData] = useState({
@@ -53,12 +58,11 @@ function TravelerDashboard() {
     pricePerKg: "",
     flightNumber: "",
     airline: "",
-    flightItinerary: null,
     eTicket: null,
     allowedItems: [],
+    pickupCities: [],
   });
 
-  // Custom modal state for alerts
   const [showNotification, setShowNotification] = useState({
     isVisible: false,
     message: "",
@@ -80,7 +84,19 @@ function TravelerDashboard() {
     "Handicrafts and small gifts",
   ];
 
-  // Fetch all trips for the current traveler
+  const nepalCities = [
+    "Kathmandu",
+    "Pokhara",
+    "Lalitpur",
+    "Biratnagar",
+    "Bharatpur",
+    "Birgunj",
+    "Butwal",
+    "Dharan",
+    "Hetauda",
+    "Dhangadhi",
+  ];
+
   const fetchTrips = useCallback(async () => {
     if (!user?.uid) return;
     try {
@@ -104,11 +120,9 @@ function TravelerDashboard() {
     }
   }, [user?.uid]);
 
-  // Fetch all incoming requests for the current traveler
   const fetchIncomingRequests = useCallback(async () => {
     if (!user?.uid) return;
     try {
-      // Fetch requests where the travelerId matches the current user's UID
       const q = query(
         collection(db, "shipmentRequests"),
         where("travelerId", "==", user.uid)
@@ -145,6 +159,15 @@ function TravelerDashboard() {
     }));
   };
 
+  const handlePickupCityToggle = (city) => {
+    setTripData((prev) => ({
+      ...prev,
+      pickupCities: prev.pickupCities.includes(city)
+        ? prev.pickupCities.filter((c) => c !== city)
+        : [...prev.pickupCities, city],
+    }));
+  };
+
   const handleFileUpload = (field, file) => {
     if (file && file.type === "application/pdf") {
       setTripData((prev) => ({
@@ -171,9 +194,9 @@ function TravelerDashboard() {
       pricePerKg: trip.pricePerKg.toString(),
       flightNumber: trip.flightNumber,
       airline: trip.airline,
-      flightItinerary: null,
       eTicket: null,
       allowedItems: trip.allowedItems || [],
+      pickupCities: trip.pickupCities || [],
     });
     setShowEditTrip(true);
   };
@@ -197,6 +220,14 @@ function TravelerDashboard() {
       });
       return;
     }
+    if (tripData.pickupCities.length === 0) {
+      setShowNotification({
+        isVisible: true,
+        message: "Please select at least one pickup city.",
+        type: "warning",
+      });
+      return;
+    }
 
     try {
       const tripPayload = {
@@ -209,12 +240,10 @@ function TravelerDashboard() {
         flightNumber: tripData.flightNumber,
         airline: tripData.airline,
         allowedItems: tripData.allowedItems,
+        pickupCities: tripData.pickupCities,
         updatedAt: serverTimestamp(),
       };
 
-      if (tripData.flightItinerary) {
-        tripPayload.flightItinerary = tripData.flightItinerary.name;
-      }
       if (tripData.eTicket) {
         tripPayload.eTicket = tripData.eTicket.name;
       }
@@ -267,12 +296,7 @@ function TravelerDashboard() {
   };
 
   const handleCreateTrip = async () => {
-    if (
-      !tripData.flightNumber ||
-      !tripData.airline ||
-      !tripData.flightItinerary ||
-      !tripData.eTicket
-    ) {
+    if (!tripData.flightNumber || !tripData.airline || !tripData.eTicket) {
       setShowNotification({
         isVisible: true,
         message:
@@ -289,11 +313,18 @@ function TravelerDashboard() {
       });
       return;
     }
+    if (tripData.pickupCities.length === 0) {
+      setShowNotification({
+        isVisible: true,
+        message: "Please select at least one pickup city.",
+        type: "warning",
+      });
+      return;
+    }
 
     try {
       const tripPayload = {
         ...tripData,
-        flightItinerary: tripData.flightItinerary.name,
         eTicket: tripData.eTicket.name,
         travelerId: user.uid,
         travelerName: userProfile.verification?.fullName || user.phoneNumber,
@@ -321,23 +352,83 @@ function TravelerDashboard() {
       });
     }
   };
-
   const handleAcceptRequest = async (request) => {
     try {
-      // Update the request status to 'accepted'
       await updateDoc(doc(db, "shipmentRequests", request.id), {
         status: "accepted",
         updatedAt: serverTimestamp(),
       });
 
-      // Update the trip's available weight
       const newAvailableWeight = request.availableWeight - request.weight;
       await updateDoc(doc(db, "trips", request.tripId), {
         availableWeight: newAvailableWeight,
         updatedAt: serverTimestamp(),
       });
 
-      // Refetch data to update the UI
+      const senderRef = doc(db, "users", request.senderId);
+      const senderDoc = await getDoc(senderRef);
+      const currentNotifications = senderDoc.data()?.notifications || [];
+
+      const notificationPayload = {
+        id: new Date().getTime(),
+        type: "success",
+        title: "Shipment Request Accepted",
+        message: `Your request for a ${
+          request.weight
+        }kg package has been accepted by ${
+          userProfile.verification?.fullName || user.phoneNumber
+        }.`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      let updatedNotifications = [...currentNotifications, notificationPayload];
+      if (updatedNotifications.length > 20) {
+        updatedNotifications = updatedNotifications.slice(1);
+      }
+
+      await updateDoc(senderRef, { notifications: updatedNotifications });
+
+      const emailPayload = {
+        to: request.senderEmail,
+        subject: "Your Shipment Request Has Been Accepted",
+        text: `Hello ${
+          request.senderName
+        },\n\nYour request for the shipment of a ${
+          request.weight
+        }kg package has been accepted by ${
+          userProfile.verification?.fullName || user.phoneNumber
+        }. The traveler will be in contact with you shortly to finalize the details.\n\nThank you for using our service!\n\nBest regards,\nTeam SwiftShip`,
+        html: `<p>Hello ${
+          request.senderName
+        },</p><p>Your request for the shipment of a ${
+          request.weight
+        }kg package has been accepted by ${
+          userProfile.verification?.fullName || user.phoneNumber
+        }.</p><p>You can now reach out to them to coordinate the pickup and delivery details. Their contact information is available on your dashboard under "My Requests".</p><p>Thank you for using our service!</p><p>Best regards,<br/>Team SwiftShip</p>`,
+      };
+
+      const emailResponse = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
+      });
+
+      if (!emailResponse.ok) {
+        // Attempt to read a JSON error from the API route response
+        let errorDetail = "Unknown email sending error.";
+        try {
+          const errorData = await emailResponse.json();
+          errorDetail = errorData.error || errorDetail;
+        } catch (jsonError) {
+          // If the response is not JSON, log the full text.
+          errorDetail = await emailResponse.text();
+        }
+        console.error("Email API failed:", errorDetail);
+      } else {
+        console.log("Email sent successfully!");
+      }
+
       fetchIncomingRequests();
       fetchTrips();
       setShowRequestDetailsModal(false);
@@ -358,11 +449,33 @@ function TravelerDashboard() {
 
   const handleRejectRequest = async (request) => {
     try {
-      // Update the request status to 'rejected'
       await updateDoc(doc(db, "shipmentRequests", request.id), {
         status: "rejected",
         updatedAt: serverTimestamp(),
       });
+
+      const senderRef = doc(db, "users", request.senderId);
+      const senderDoc = await getDoc(senderRef);
+      const currentNotifications = senderDoc.data()?.notifications || [];
+
+      const notificationPayload = {
+        id: new Date().getTime(),
+        type: "info",
+        title: "Shipment Request Rejected",
+        message: `Your request for a ${
+          request.weight
+        }kg package has been rejected by ${
+          userProfile.verification?.fullName || user.phoneNumber
+        }.`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      let updatedNotifications = [...currentNotifications, notificationPayload];
+      if (updatedNotifications.length > 20) {
+        updatedNotifications = updatedNotifications.slice(1);
+      }
+      await updateDoc(senderRef, { notifications: updatedNotifications });
 
       fetchIncomingRequests();
       setShowRequestDetailsModal(false);
@@ -391,9 +504,9 @@ function TravelerDashboard() {
       pricePerKg: "",
       flightNumber: "",
       airline: "",
-      flightItinerary: null,
       eTicket: null,
       allowedItems: [],
+      pickupCities: [],
     });
   };
 
@@ -453,7 +566,6 @@ function TravelerDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-red-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
@@ -504,7 +616,6 @@ function TravelerDashboard() {
           </div>
         </div>
 
-        {/* Tabs for Navigation */}
         <div className="flex border-b border-gray-200 mb-6">
           <button
             onClick={() => setActiveTab("trips")}
@@ -530,7 +641,6 @@ function TravelerDashboard() {
 
         {activeTab === "trips" && (
           <>
-            {/* Create Trip Button */}
             <div className="mb-8">
               <button
                 onClick={() => setShowCreateTrip(true)}
@@ -597,6 +707,17 @@ function TravelerDashboard() {
                                         ` +${
                                           trip.allowedItems.length - 3
                                         } more`}
+                                    </span>
+                                  </div>
+                                )}
+                              {trip.pickupCities &&
+                                trip.pickupCities.length > 0 && (
+                                  <div className="mt-2">
+                                    <span className="text-sm font-medium text-gray-600">
+                                      Pickup in Nepal:{" "}
+                                    </span>
+                                    <span className="text-sm text-gray-600">
+                                      {trip.pickupCities.join(", ")}
                                     </span>
                                   </div>
                                 )}
@@ -691,7 +812,6 @@ function TravelerDashboard() {
           </div>
         )}
 
-        {/* Create/Edit Trip Modal */}
         {(showCreateTrip || showEditTrip) && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
@@ -713,7 +833,6 @@ function TravelerDashboard() {
               </div>
 
               <div className="space-y-6">
-                {/* Flight Information Section */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <Plane className="w-5 h-5 mr-2 text-blue-800" />
@@ -758,31 +877,6 @@ function TravelerDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Flight Itinerary (PDF){" "}
-                        {editingTrip ? "(Optional - only if updating)" : "*"}
-                      </label>
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={(e) =>
-                          handleFileUpload("flightItinerary", e.target.files[0])
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
-                        required={!editingTrip}
-                      />
-                      {tripData.flightItinerary && (
-                        <p className="text-sm text-green-600 mt-1">
-                          ✓ {tripData.flightItinerary.name}
-                        </p>
-                      )}
-                      {editingTrip && !tripData.flightItinerary && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Current file will be kept if not replaced
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         E-Ticket (PDF){" "}
                         {editingTrip ? "(Optional - only if updating)" : "*"}
                       </label>
@@ -809,7 +903,6 @@ function TravelerDashboard() {
                   </div>
                 </div>
 
-                {/* Travel Dates */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -847,7 +940,6 @@ function TravelerDashboard() {
                   </div>
                 </div>
 
-                {/* Baggage Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -887,7 +979,30 @@ function TravelerDashboard() {
                   </div>
                 </div>
 
-                {/* Legal Items Checklist */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-4">
+                    Expect receipt to pick up from (Select all that apply) *
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-48 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {nepalCities.map((city) => (
+                        <label
+                          key={city}
+                          className="flex items-center space-x-3 cursor-pointer hover:bg-white p-2 rounded"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={tripData.pickupCities.includes(city)}
+                            onChange={() => handlePickupCityToggle(city)}
+                            className="w-4 h-4 text-blue-800 border-gray-300 rounded focus:ring-blue-800"
+                          />
+                          <span className="text-sm text-gray-700">{city}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-4">
                     Items You Can Carry (Select all that apply) *
@@ -941,7 +1056,6 @@ function TravelerDashboard() {
           </div>
         )}
 
-        {/* Incoming Request Details Modal */}
         {showRequestDetailsModal && selectedRequest && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
@@ -1025,7 +1139,6 @@ function TravelerDashboard() {
           </div>
         )}
 
-        {/* Custom Notification Modal */}
         {showNotification.isVisible && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div

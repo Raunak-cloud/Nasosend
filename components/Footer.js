@@ -100,14 +100,14 @@ const Footer = () => {
             <h4 className="font-semibold mb-4">Support</h4>
             <div className="space-y-3 text-sm">
               <a
-                href="/contact"
+                href="/support"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Contact Us
               </a>
 
               <a
-                href="/dispute"
+                href="/report-bugs"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Report bugs

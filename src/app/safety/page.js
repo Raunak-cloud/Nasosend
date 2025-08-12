@@ -600,11 +600,7 @@ const SafetyGuidelines = () => {
                   Violation of these guidelines may result in legal
                   consequences.
                 </p>
-                <p>
-                  <strong>Insurance:</strong> While we provide basic coverage,
-                  users are encouraged to obtain additional insurance for
-                  high-value items.
-                </p>
+
                 <p>
                   <strong>Reporting:</strong> Report any suspicious activity or
                   safety concerns immediately to our support team and local

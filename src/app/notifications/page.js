@@ -1,57 +1,50 @@
+//app/notifications/page.js
+
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, updateDoc, arrayRemove } from "firebase/firestore";
 import { Bell, CheckCircle, AlertTriangle, Info, X } from "lucide-react";
 
-const notificationsData = [
-  {
-    id: 1,
-    type: "success",
-    title: "Shipment Request Accepted",
-    message:
-      "Your request for a 5kg package has been accepted by John Doe. You can now proceed to coordinate the details.",
-    timestamp: "2 hours ago",
-    read: false,
-  },
-  {
-    id: 2,
-    type: "info",
-    title: "Welcome to the Platform!",
-    message:
-      "We are thrilled to have you! Explore available trips or post your own to get started.",
-    timestamp: "1 day ago",
-    read: true,
-  },
-  {
-    id: 3,
-    type: "warning",
-    title: "Verification Link Expired",
-    message:
-      "The email verification link has expired. Please resend a new one from your profile settings.",
-    timestamp: "2 days ago",
-    read: false,
-  },
-  {
-    id: 4,
-    type: "success",
-    title: "Trip Posted Successfully",
-    message:
-      "Your trip from Sydney to Kathmandu on 25th Oct has been posted successfully. You will be notified when a sender requests your service.",
-    timestamp: "3 days ago",
-    read: true,
-  },
-  {
-    id: 5,
-    type: "info",
-    title: "Profile Updated",
-    message:
-      "Your profile information has been updated. All changes are now live.",
-    timestamp: "1 week ago",
-    read: true,
-  },
-];
-
 const NotificationPage = () => {
-  const [notifications, setNotifications] = useState(notificationsData);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchNotifications = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        const fetchedNotifications = userData.notifications || [];
+        setNotifications(fetchedNotifications);
+
+        // Mark all notifications as read when the page is opened
+        const hasUnread = fetchedNotifications.some((n) => !n.read);
+        if (hasUnread) {
+          const updatedNotifications = fetchedNotifications.map((n) => ({
+            ...n,
+            read: true,
+          }));
+          await updateDoc(userDocRef, { notifications: updatedNotifications });
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [user]);
 
   const getIcon = (type) => {
     switch (type) {
@@ -66,14 +59,7 @@ const NotificationPage = () => {
     }
   };
 
-  const getColors = (type, read) => {
-    if (read) {
-      return {
-        bg: "bg-white",
-        border: "border-gray-200",
-        text: "text-gray-600",
-      };
-    }
+  const getColors = (type) => {
     switch (type) {
       case "success":
         return {
@@ -102,16 +88,37 @@ const NotificationPage = () => {
     }
   };
 
-  const handleMarkAsRead = (id) => {
-    setNotifications((prevNotifications) =>
-      prevNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  const handleDeleteNotification = async (notificationToDelete) => {
+    if (!user) return;
+    try {
+      const userDocRef = doc(db, "users", user.uid);
+      await updateDoc(userDocRef, {
+        notifications: arrayRemove(notificationToDelete),
+      });
+      setNotifications((prevNotifications) =>
+        prevNotifications.filter((n) => n.id !== notificationToDelete.id)
+      );
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+    }
   };
 
-  const handleDeleteNotification = (id) => {
-    setNotifications((prevNotifications) =>
-      prevNotifications.filter((n) => n.id !== id)
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading notifications...
+      </div>
     );
+  }
+
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) {
+      return "A few moments ago";
+    }
+    if (typeof timestamp.toDate === "function") {
+      return timestamp.toDate().toLocaleString();
+    }
+    return new Date(timestamp).toLocaleString();
   };
 
   return (
@@ -125,57 +132,41 @@ const NotificationPage = () => {
 
         {notifications.length > 0 ? (
           <div className="space-y-4">
-            {notifications.map((notification) => {
-              const { bg, border, text } = getColors(
-                notification.type,
-                notification.read
-              );
-              return (
-                <div
-                  key={notification.id}
-                  className={`relative flex items-start p-6 rounded-xl shadow-sm border transition-all ${bg} ${border} ${
-                    notification.read ? "" : "hover:shadow-md"
-                  }`}
-                >
-                  <div className="flex-shrink-0 mr-4">
-                    {getIcon(notification.type)}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className={`font-semibold text-lg mb-1 ${text}`}>
-                      {notification.title}
-                    </h3>
-                    <p
-                      className={`text-sm ${
-                        notification.read ? "text-gray-500" : "text-gray-700"
-                      }`}
-                    >
-                      {notification.message}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-2">
-                      {notification.timestamp}
-                    </p>
-                  </div>
-                  <div className="ml-auto flex items-center space-x-2">
-                    {!notification.read && (
+            {notifications
+              .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+              .map((notification) => {
+                const { bg, border, text } = getColors(notification.type);
+                return (
+                  <div
+                    key={notification.id}
+                    className={`relative flex items-start p-6 rounded-xl shadow-sm border transition-all ${bg} ${border}`}
+                  >
+                    <div className="flex-shrink-0 mr-4">
+                      {getIcon(notification.type)}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className={`font-semibold text-lg mb-1 ${text}`}>
+                        {notification.title}
+                      </h3>
+                      <p className={`text-sm text-gray-700`}>
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {formatTimestamp(notification.timestamp)}
+                      </p>
+                    </div>
+                    <div className="ml-auto flex items-center space-x-2">
                       <button
-                        onClick={() => handleMarkAsRead(notification.id)}
-                        className="text-gray-400 hover:text-blue-600 p-1 rounded-full transition-colors"
-                        title="Mark as read"
+                        onClick={() => handleDeleteNotification(notification)}
+                        className="text-gray-400 hover:text-red-600 p-1 rounded-full transition-colors"
+                        title="Dismiss"
                       >
-                        <CheckCircle className="h-5 w-5" />
+                        <X className="h-5 w-5" />
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteNotification(notification.id)}
-                      className="text-gray-400 hover:text-red-600 p-1 rounded-full transition-colors"
-                      title="Dismiss"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow p-6 text-center text-gray-500">

@@ -1,3 +1,5 @@
+// GlobalNavigation.js
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -5,7 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { auth, db } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, onSnapshot } from "firebase/firestore";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -16,8 +18,8 @@ export default function GlobalNavigation() {
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [currentAccountType, setCurrentAccountType] = useState("");
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  // A more professional, globally defined color palette
   const colors = {
     primaryRed: "#DC143C",
     primaryRedHover: "#B01030",
@@ -31,7 +33,6 @@ export default function GlobalNavigation() {
   };
 
   useEffect(() => {
-    // Determine current account type based on path
     if (pathname?.includes("/sender")) {
       setCurrentAccountType("sender");
     } else if (pathname?.includes("/traveler")) {
@@ -41,7 +42,26 @@ export default function GlobalNavigation() {
     }
   }, [pathname]);
 
-  // Close dropdowns when clicking outside
+  useEffect(() => {
+    if (!user) {
+      setUnreadNotifications(0);
+      return;
+    }
+
+    const userDocRef = doc(db, "users", user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (doc) => {
+      if (doc.exists()) {
+        const notifications = doc.data().notifications || [];
+        const unreadCount = notifications.filter((n) => !n.read).length;
+        setUnreadNotifications(unreadCount);
+      } else {
+        setUnreadNotifications(0);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!event.target.closest(".dropdown-container")) {
@@ -55,7 +75,6 @@ export default function GlobalNavigation() {
     };
   }, []);
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setShowMobileMenu(false);
     setShowAccountDropdown(false);
@@ -77,7 +96,6 @@ export default function GlobalNavigation() {
     setShowMobileMenu(false);
   };
 
-  // Shared menu items component
   const MenuItems = ({ isMobile = false }) => {
     const baseClasses = isMobile
       ? "flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
@@ -260,12 +278,14 @@ export default function GlobalNavigation() {
                 </svg>
                 <span className="font-semibold">Notifications</span>
               </div>
-              <span
-                style={{ backgroundColor: colors.primaryRed }}
-                className="text-white text-xs rounded-full px-2 py-1 font-bold"
-              >
-                3
-              </span>
+              {unreadNotifications > 0 && (
+                <span
+                  style={{ backgroundColor: colors.primaryRed }}
+                  className="text-white text-xs rounded-full px-2 py-1 font-bold"
+                >
+                  {unreadNotifications}
+                </span>
+              )}
             </>
           ) : (
             <>
@@ -293,18 +313,19 @@ export default function GlobalNavigation() {
                   <span className="font-semibold">Notifications</span>
                   <p className="text-xs text-gray-500">View your updates</p>
                 </div>
-                <span
-                  style={{ backgroundColor: colors.primaryRed }}
-                  className="text-white text-xs rounded-full px-2 py-1 font-bold shadow-sm flex-shrink-0"
-                >
-                  3
-                </span>
+                {unreadNotifications > 0 && (
+                  <span
+                    style={{ backgroundColor: colors.primaryRed }}
+                    className="text-white text-xs rounded-full px-2 py-1 font-bold shadow-sm flex-shrink-0"
+                  >
+                    {unreadNotifications}
+                  </span>
+                )}
               </div>
             </>
           )}
         </Link>
 
-        {/* Sign Out */}
         <div className={isMobile ? "" : `border-t border-gray-100 py-2`}>
           <button
             onClick={handleSignOut}
@@ -367,7 +388,6 @@ export default function GlobalNavigation() {
     setShowAccountDropdown(false);
     setShowMobileMenu(false);
 
-    // Save preference to database
     if (user) {
       try {
         const userRef = doc(db, "users", user.uid);
@@ -380,7 +400,6 @@ export default function GlobalNavigation() {
       }
     }
 
-    // Navigate to appropriate dashboard
     if (accountType === "sender") {
       router.push("/sender/dashboard");
     } else if (accountType === "traveler") {
@@ -465,7 +484,6 @@ export default function GlobalNavigation() {
     >
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-20">
-          {/* Logo and Main Nav */}
           <div className="flex items-center min-w-0">
             <Link href="/" className="flex items-center group flex-shrink-0">
               <div className="relative">
@@ -479,7 +497,6 @@ export default function GlobalNavigation() {
               </div>
             </Link>
 
-            {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center ml-8 xl:ml-12 space-x-1">
               {navItems.map((item) => {
                 const isActive = item.paths.includes(pathname);
@@ -504,7 +521,6 @@ export default function GlobalNavigation() {
             </div>
           </div>
 
-          {/* Right Side - Desktop Account Menu / Mobile Menu Button */}
           <div className="flex items-center space-x-4 min-w-0">
             {loading ? (
               <div className="hidden lg:flex items-center space-x-2">
@@ -525,7 +541,6 @@ export default function GlobalNavigation() {
                   }}
                 >
                   <div className="flex items-center">
-                    {/* Enhanced Profile Picture */}
                     <div className="relative">
                       <div
                         className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-lg"
@@ -592,13 +607,11 @@ export default function GlobalNavigation() {
                   </svg>
                 </button>
 
-                {/* Desktop Account Dropdown */}
                 {showAccountDropdown && (
                   <div
                     className="absolute right-0 mt-3 w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border overflow-hidden animate-in slide-in-from-top-2 duration-200 max-h-[calc(100vh-100px)] overflow-y-auto"
                     style={{ borderColor: colors.borderGray }}
                   >
-                    {/* Account Type Section */}
                     <div
                       className="px-6 py-5 border-b"
                       style={{
@@ -776,7 +789,6 @@ export default function GlobalNavigation() {
                       </div>
                     </div>
 
-                    {/* Menu Items */}
                     <div className="py-2">
                       <MenuItems />
                     </div>
@@ -798,7 +810,6 @@ export default function GlobalNavigation() {
               </div>
             )}
 
-            {/* Mobile Menu Button - Always Visible on Mobile */}
             <button
               onClick={() => setShowMobileMenu(!showMobileMenu)}
               className="lg:hidden p-3 rounded-xl transition-colors border"
@@ -836,14 +847,12 @@ export default function GlobalNavigation() {
           </div>
         </div>
 
-        {/* Mobile Menu */}
         {showMobileMenu && (
           <div
             className="lg:hidden border-t bg-white/95 backdrop-blur-md"
             style={{ borderColor: colors.borderGray }}
           >
             <div className="px-4 py-4 space-y-3 max-h-[calc(100vh-80px)] overflow-y-auto">
-              {/* Navigation Items - Compact */}
               <div className="grid grid-cols-2 gap-2">
                 {navItems.map((item) => {
                   const isActive = item.paths.includes(pathname);
@@ -869,13 +878,11 @@ export default function GlobalNavigation() {
                 })}
               </div>
 
-              {/* User Section - Only show if user is logged in */}
               {user ? (
                 <div
                   className="border-t pt-3 space-y-3"
                   style={{ borderColor: colors.borderGray }}
                 >
-                  {/* User Profile Display - Compact */}
                   <div
                     className="flex items-center px-3 py-2 rounded-lg"
                     style={{ backgroundColor: colors.lightGray }}
@@ -941,7 +948,6 @@ export default function GlobalNavigation() {
                     </div>
                   </div>
 
-                  {/* Account Type Switcher - Horizontal */}
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => handleAccountSwitch("sender")}
@@ -1041,7 +1047,6 @@ export default function GlobalNavigation() {
                     </button>
                   </div>
 
-                  {/* Menu Actions - Compact Grid */}
                   <div className="grid grid-cols-2 gap-2">
                     <Link
                       href="/profile"
@@ -1085,62 +1090,17 @@ export default function GlobalNavigation() {
                       <span className="text-xs font-semibold">
                         Notifications
                       </span>
-                      <div
-                        className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: colors.primaryRed }}
-                      >
-                        <span className="text-xs text-white font-bold">3</span>
-                      </div>
+                      {unreadNotifications > 0 && (
+                        <div
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: colors.primaryRed }}
+                        >
+                          <span className="text-xs text-white font-bold">
+                            {unreadNotifications}
+                          </span>
+                        </div>
+                      )}
                     </Link>
-
-                    {/* Account Specific Items */}
-                    {currentAccountType === "sender" && (
-                      <Link
-                        href="/sender/shipments"
-                        onClick={handleMenuItemClick}
-                        className="flex flex-col items-center px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                      >
-                        <svg
-                          className="w-5 h-5 mb-1"
-                          style={{ color: colors.primaryRed }}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                          />
-                        </svg>
-                        <span className="text-xs font-semibold">Shipments</span>
-                      </Link>
-                    )}
-
-                    {currentAccountType === "traveler" && (
-                      <Link
-                        href="/traveler/trips"
-                        onClick={handleMenuItemClick}
-                        className="flex flex-col items-center px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                      >
-                        <svg
-                          className="w-5 h-5 mb-1"
-                          style={{ color: colors.primaryBlue }}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
-                          />
-                        </svg>
-                        <span className="text-xs font-semibold">Trips</span>
-                      </Link>
-                    )}
 
                     <button
                       onClick={handleSignOut}
@@ -1165,7 +1125,6 @@ export default function GlobalNavigation() {
                   </div>
                 </div>
               ) : (
-                /* Login Section for non-authenticated users */
                 <div
                   className="border-t pt-3"
                   style={{ borderColor: colors.borderGray }}
