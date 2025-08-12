@@ -1,4 +1,4 @@
-//app/api/send-email/route.js
+// app/api/send-email/route.js
 
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
@@ -15,15 +15,17 @@ export async function POST(request) {
 
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail", // or your preferred email service
+      host: "smtp.sendgrid.net", // SendGrid's SMTP host
+      port: 587, // Port for TLS
+      secure: false, // Use 'true' for port 465, but 587 is common for TLS
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: "sendemail",
+        pass: process.env.SENDGRID_API_KEY,
       },
     });
 
     const mailOptions = {
-      from: process.env.SMTP_USER,
+      from: process.env.EMAIL_FROM_ADDRESS, // Use your verified sender email
       to,
       subject,
       text,
