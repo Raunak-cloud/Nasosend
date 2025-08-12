@@ -1,4 +1,4 @@
-//app/travelers/dashboard/page.js
+// app/travelers/dashboard/page.js
 
 "use client";
 
@@ -16,9 +16,10 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  getDoc,
   arrayUnion,
   arrayRemove,
-  getDoc,
+  onSnapshot,
 } from "firebase/firestore";
 import {
   Plane,
@@ -40,7 +41,7 @@ export default function TravelerDashboardPage() {
 
 function TravelerDashboard() {
   const router = useRouter();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const [showCreateTrip, setShowCreateTrip] = useState(false);
   const [showEditTrip, setShowEditTrip] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
@@ -62,7 +63,6 @@ function TravelerDashboard() {
     allowedItems: [],
     pickupCities: [],
   });
-
   const [showNotification, setShowNotification] = useState({
     isVisible: false,
     message: "",
@@ -97,6 +97,18 @@ function TravelerDashboard() {
     "Dhangadhi",
   ];
 
+  // Colors for consistent styling
+  const colors = {
+    primaryRed: "#DC143C",
+    primaryBlue: "#003366",
+    gold: "#FFD700",
+    white: "#FFFFFF",
+    darkGray: "#2E2E2E",
+    lightGray: "#F5F5F5",
+    borderGray: "#D9D9D9",
+  };
+
+  // Fetch all trips for the current traveler
   const fetchTrips = useCallback(async () => {
     if (!user?.uid) return;
     try {
@@ -120,35 +132,42 @@ function TravelerDashboard() {
     }
   }, [user?.uid]);
 
-  const fetchIncomingRequests = useCallback(async () => {
+  // Use a real-time listener to get incoming requests for the current traveler
+  useEffect(() => {
     if (!user?.uid) return;
-    try {
-      const q = query(
-        collection(db, "shipmentRequests"),
-        where("travelerId", "==", user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const requestsData = [];
-      querySnapshot.forEach((doc) => {
-        requestsData.push({ id: doc.id, ...doc.data() });
-      });
-      setIncomingRequests(requestsData);
-    } catch (error) {
-      console.error("Error fetching incoming requests:", error);
-      setShowNotification({
-        isVisible: true,
-        message: "Failed to fetch incoming requests. Please try again.",
-        type: "error",
-      });
-    }
+
+    const q = query(
+      collection(db, "shipmentRequests"),
+      where("travelerId", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const requestsData = [];
+        querySnapshot.forEach((doc) => {
+          requestsData.push({ id: doc.id, ...doc.data() });
+        });
+        setIncomingRequests(requestsData);
+      },
+      (error) => {
+        console.error("Error fetching real-time incoming requests:", error);
+        setShowNotification({
+          isVisible: true,
+          message: "Failed to fetch incoming requests in real-time.",
+          type: "error",
+        });
+      }
+    );
+
+    return () => unsubscribe();
   }, [user?.uid]);
 
   useEffect(() => {
     if (user) {
       fetchTrips();
-      fetchIncomingRequests();
     }
-  }, [user, fetchTrips, fetchIncomingRequests]);
+  }, [user, fetchTrips]);
 
   const handleItemToggle = (item) => {
     setTripData((prev) => ({
@@ -329,6 +348,7 @@ function TravelerDashboard() {
         travelerId: user.uid,
         travelerName: userProfile.verification?.fullName || user.phoneNumber,
         travelerPhone: user.phoneNumber,
+        travelerEmail: user.email, // Add traveler's email to the trip document
         verified: userProfile.verified || false,
         status: "active",
         createdAt: serverTimestamp(),
@@ -352,6 +372,7 @@ function TravelerDashboard() {
       });
     }
   };
+
   const handleAcceptRequest = async (request) => {
     try {
       await updateDoc(doc(db, "shipmentRequests", request.id), {
@@ -398,16 +419,15 @@ function TravelerDashboard() {
           request.weight
         }kg package has been accepted by ${
           userProfile.verification?.fullName || user.phoneNumber
-        }. The traveler will be in contact with you shortly to finalize the details.\n\nThank you for using our service!\n\nBest regards,\nTeam SwiftShip`,
+        }. The traveler will be in contact with you shortly to finalize the details.\n\nThank you for using our service!\n\nBest regards,\nTeam Nasosend`,
         html: `<p>Hello ${
           request.senderName
         },</p><p>Your request for the shipment of a ${
           request.weight
         }kg package has been accepted by ${
           userProfile.verification?.fullName || user.phoneNumber
-        }.</p><p>You can now reach out to them to coordinate the pickup and delivery details. Their contact information is available on your dashboard under "My Requests".</p><p>Thank you for using our service!</p><p>Best regards,<br/>Team SwiftShip</p>`,
+        }.</p><p>You can now reach out to them to coordinate the pickup and delivery details. Their contact information is available on your dashboard under "My Requests".</p><p>Thank you for using our service!</p><p>Best regards,<br/>Team Nasosend</p>`,
       };
-
       const emailResponse = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -415,21 +435,9 @@ function TravelerDashboard() {
       });
 
       if (!emailResponse.ok) {
-        // Attempt to read a JSON error from the API route response
-        let errorDetail = "Unknown email sending error.";
-        try {
-          const errorData = await emailResponse.json();
-          errorDetail = errorData.error || errorDetail;
-        } catch (jsonError) {
-          // If the response is not JSON, log the full text.
-          errorDetail = await emailResponse.text();
-        }
-        console.error("Email API failed:", errorDetail);
-      } else {
-        console.log("Email sent successfully!");
+        console.error("Email API failed:", await emailResponse.text());
       }
 
-      fetchIncomingRequests();
       fetchTrips();
       setShowRequestDetailsModal(false);
       setShowNotification({
@@ -477,7 +485,6 @@ function TravelerDashboard() {
       }
       await updateDoc(senderRef, { notifications: updatedNotifications });
 
-      fetchIncomingRequests();
       setShowRequestDetailsModal(false);
       setShowNotification({
         isVisible: true,
@@ -510,6 +517,16 @@ function TravelerDashboard() {
     });
   };
 
+  // If still loading or no user, show a simple loading state
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+
+  // Handle unverified user state
   if (!userProfile?.verified && userProfile?.verificationPending) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
@@ -563,6 +580,10 @@ function TravelerDashboard() {
     );
   }
 
+  const pendingRequestsCount = incomingRequests.filter(
+    (r) => r.status === "pending"
+  ).length;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-red-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
@@ -589,10 +610,7 @@ function TravelerDashboard() {
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Pending Requests</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {
-                    incomingRequests.filter((r) => r.status === "pending")
-                      .length
-                  }
+                  {pendingRequestsCount}
                 </p>
               </div>
             </div>

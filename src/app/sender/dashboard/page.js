@@ -1,4 +1,4 @@
-//app/sender/dashboard/page.js
+// app/sender/dashboard/page.js
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -13,6 +13,9 @@ import {
   doc,
   addDoc,
   serverTimestamp,
+  getDoc,
+  updateDoc,
+  arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import BuyTokens from "@/components/BuyTokens";
@@ -243,39 +246,74 @@ export default function SenderDashboardPage() {
 
     setIsSubmitting(true);
     try {
-      // Correctly access traveler's email from the selected trip object.
-      // The traveler's email should be stored in the trip document when it's created.
-      // Since the traveler's email is part of their Firebase Auth user object,
-      // you can either save it with the trip document, or fetch it here.
-      // The most reliable method is to save it with the trip, so let's assume
-      // that's in place.
-      const travelerEmail =
-        selectedTrip.travelerEmail || "traveler@example.com";
+      // Get the current user's profile information for the request
+      const senderName =
+        userProfile.verification?.fullName ||
+        user.email?.split("@")[0] ||
+        "Unknown Sender";
+      const senderEmail = user.email;
 
+      // Construct the shipment request payload
       const requestPayload = {
         ...requestData,
         tripId: selectedTrip.id,
         travelerId: selectedTrip.travelerId,
         travelerName: selectedTrip.travelerName,
         travelerPhone: selectedTrip.travelerPhone,
-        travelerEmail: travelerEmail,
+        travelerEmail: selectedTrip.travelerEmail,
         departureDate: selectedTrip.departureDate,
         arrivalDate: selectedTrip.arrivalDate,
         flightNumber: selectedTrip.flightNumber,
         pricePerKg: selectedTrip.pricePerKg,
         availableWeight: selectedTrip.availableWeight,
         senderId: user.uid,
-        senderName:
-          userProfile.verification?.fullName ||
-          user.email?.split("@")[0] ||
-          "Unknown Sender",
-        senderEmail: user.email, // Use user.email directly from authentication
+        senderName: senderName,
+        senderEmail: senderEmail,
         status: "pending",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
       await addDoc(collection(db, "shipmentRequests"), requestPayload);
+
+      // 1. Create a notification for the traveler
+      const travelerRef = doc(db, "users", selectedTrip.travelerId);
+      const travelerDoc = await getDoc(travelerRef);
+      const currentTravelerNotifications =
+        travelerDoc.data()?.notifications || [];
+      const newNotificationForTraveler = {
+        id: new Date().getTime(),
+        type: "info",
+        title: "New Shipment Request Received",
+        message: `${senderName} has sent you a request for a ${requestData.weight}kg package.`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      let updatedTravelerNotifications = [
+        ...currentTravelerNotifications,
+        newNotificationForTraveler,
+      ];
+      if (updatedTravelerNotifications.length > 20) {
+        updatedTravelerNotifications = updatedTravelerNotifications.slice(1);
+      }
+      await updateDoc(travelerRef, {
+        notifications: updatedTravelerNotifications,
+      });
+
+      // 2. Send an email to the traveler
+      const emailPayload = {
+        to: selectedTrip.travelerEmail,
+        subject: "New Shipment Request on Nasosend",
+        text: `Hello ${selectedTrip.travelerName},\n\nYou have a new shipment request from ${senderName} for a ${requestData.weight}kg package. Please check your dashboard for more details.\n\nBest regards,\nTeam Nasosend`,
+        html: `<p>Hello ${selectedTrip.travelerName},</p><p>You have a new shipment request from **${senderName}** for a ${requestData.weight}kg package.</p><p>Please log in to your dashboard to review and respond to the request.</p><p>Best regards,<br/>Team Nasosend</p>`,
+      };
+
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
+      });
 
       setTokenInfo((prev) => ({
         ...prev,
@@ -297,8 +335,7 @@ export default function SenderDashboardPage() {
 
       setShowNotification({
         isVisible: true,
-        message:
-          "Request sent successfully! The traveler will contact you soon.",
+        message: "Request sent successfully! The traveler has been notified.",
         type: "success",
       });
 

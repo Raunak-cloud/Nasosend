@@ -16,8 +16,8 @@ export async function POST(request) {
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.sendgrid.net", // SendGrid's SMTP host
-      port: 587, // Port for TLS
-      secure: false, // Use 'true' for port 465, but 587 is common for TLS
+      port: 587,
+      secure: false,
       auth: {
         user: "apikey",
         pass: process.env.SENDGRID_API_KEY,
@@ -25,7 +25,7 @@ export async function POST(request) {
     });
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM_ADDRESS, // Use your verified sender email
+      from: process.env.EMAIL_FROM_ADDRESS,
       to,
       subject,
       text,

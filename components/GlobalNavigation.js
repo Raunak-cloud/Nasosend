@@ -475,6 +475,7 @@ export default function GlobalNavigation() {
     { href: "/blogs", label: "Blog", paths: ["/blogs"] },
     { href: "/how-it-works", label: "How It Works", paths: ["/how-it-works"] },
     { href: "/support", label: "Support", paths: ["/support"] },
+    { href: "/investors", label: "Investor", paths: ["/investors"] },
   ];
 
   return (
