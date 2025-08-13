@@ -146,11 +146,45 @@ export default function SupportDashboard() {
     }
     try {
       const userRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.data();
+
       await updateDoc(userRef, {
         verified: true,
         verificationPending: false,
         updatedAt: new Date(),
       });
+
+      // Send a notification to the user
+      const notificationPayload = {
+        id: new Date().getTime(),
+        type: "success",
+        title: "Identity Verification Approved",
+        message: `Your identity has been successfully verified. You can now access all features.`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+      await updateDoc(userRef, {
+        notifications: arrayUnion(notificationPayload),
+      });
+
+      // Send an email to the user
+      const emailPayload = {
+        to: userData.verification.email,
+        subject: "Your Nasosend Identity Has Been Verified!",
+        text: `Hello ${
+          userData.verification?.fullName || "User"
+        },\n\nYour identity verification has been successfully approved. You can now post trips and send requests on Nasosend.\n\nBest regards,\nTeam Nasosend`,
+        html: `<p>Hello ${
+          userData.verification?.fullName || "User"
+        },</p><p>Your identity verification has been successfully approved.</p><p>You can now post trips and send requests on our platform.</p><p>Best regards,<br/>Team Nasosend</p>`,
+      };
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
+      });
+
       fetchUsers();
       setShowNotification({
         isVisible: true,
@@ -206,7 +240,7 @@ export default function SupportDashboard() {
 
       // Send an email to the user with the rejection reason
       const emailPayload = {
-        to: userToReject.email,
+        to: userToReject.verification.email,
         subject: "Your Nasosend Identity Verification Was Rejected",
         text: `Hello ${
           userToReject.verification?.fullName || "User"
@@ -745,7 +779,7 @@ export default function SupportDashboard() {
               ${
                 showNotification.type === "success"
                   ? "bg-green-100 border-green-400 text-green-800"
-                  : showNotification.type === "warning"
+                  : showNotification.type === "warning"` + `
                   ? "bg-yellow-100 border-yellow-400 text-yellow-800"
                   : "bg-red-100 border-red-400 text-red-800"
               }`}
