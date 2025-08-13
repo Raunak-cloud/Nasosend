@@ -71,8 +71,9 @@ export default function SenderDashboardPage() {
     pricePerKg: 100,
     itemPreferences: [],
     pickupCities: [],
+    genderPreference: null,
+    arrivalDate: null,
   });
-  const [showFilters, setShowFilters] = useState(false);
   const [expandedItems, setExpandedItems] = useState({});
 
   const legalItems = [
@@ -103,6 +104,8 @@ export default function SenderDashboardPage() {
     "Dhangadhi",
   ];
 
+  const genderOptions = ["Any", "Male", "Female", "Other"];
+
   const colors = {
     primaryRed: "#DC143C",
     primaryRedHover: "#B01030",
@@ -121,7 +124,6 @@ export default function SenderDashboardPage() {
 
   const [tokenInfo, setTokenInfo] = useState({
     availableTokens: 10,
-    expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
 
   useEffect(() => {
@@ -211,9 +213,9 @@ export default function SenderDashboardPage() {
     if (
       !requestData.itemDescription ||
       !requestData.weight ||
+      !requestData.quantity ||
       !requestData.recipientName ||
       !requestData.recipientPhone ||
-      !requestData.recipientAddress ||
       !requestData.pickupCity
     ) {
       setShowNotification({
@@ -225,11 +227,23 @@ export default function SenderDashboardPage() {
     }
 
     const requestedWeight = parseFloat(requestData.weight);
+    const requestedQuantity = parseInt(requestData.quantity);
+
     if (isNaN(requestedWeight) || requestedWeight <= 0) {
       setShowNotification({
         isVisible: true,
         message:
           "Invalid weight provided. Please enter a number greater than 0.",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (isNaN(requestedQuantity) || requestedQuantity <= 0) {
+      setShowNotification({
+        isVisible: true,
+        message:
+          "Invalid quantity provided. Please enter a number greater than 0.",
         type: "warning",
       });
       return;
@@ -362,14 +376,6 @@ export default function SenderDashboardPage() {
     return badges[status] || "bg-gray-100 text-gray-800 border border-gray-200";
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-AU", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
-
   const handleFilterChange = (filterName, value) => {
     if (filterName === "itemPreferences" || filterName === "pickupCities") {
       setFilters((prevFilters) => ({
@@ -391,7 +397,23 @@ export default function SenderDashboardPage() {
     const pickupCityMatch =
       filters.pickupCities.length === 0 ||
       filters.pickupCities.some((city) => trip.pickupCities.includes(city));
-    return priceMatch && itemMatch && pickupCityMatch;
+
+    const genderMatch =
+      !filters.genderPreference ||
+      filters.genderPreference === "Any" ||
+      trip.travelerGender === filters.genderPreference;
+
+    const arrivalDateMatch =
+      !filters.arrivalDate ||
+      new Date(trip.arrivalDate) >= new Date(filters.arrivalDate);
+
+    return (
+      priceMatch &&
+      itemMatch &&
+      pickupCityMatch &&
+      genderMatch &&
+      arrivalDateMatch
+    );
   });
 
   const toggleItems = (tripId) => {
@@ -526,17 +548,6 @@ export default function SenderDashboardPage() {
                   Available Tokens
                 </div>
               </div>
-              <div className="text-center sm:text-right">
-                <div className="text-sm sm:text-base lg:text-lg font-semibold mb-1">
-                  {formatDate(tokenInfo.expiryDate)}
-                </div>
-                <div
-                  className="text-xs sm:text-sm opacity-90"
-                  style={{ color: colors.lighterBlue }}
-                >
-                  Expiry Date
-                </div>
-              </div>
               <button
                 onClick={() => setShowBuyTokens(true)}
                 className="bg-white px-4 sm:px-6 lg:px-8 py-2 sm:py-2.5 lg:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold hover:bg-gray-100 transition-all duration-200 transform hover:scale-105 shadow-md text-sm sm:text-base"
@@ -556,7 +567,6 @@ export default function SenderDashboardPage() {
             setTokenInfo((prev) => ({
               ...prev,
               availableTokens: prev.availableTokens + tokens,
-              expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             }));
             setShowNotification({
               isVisible: true,
@@ -691,7 +701,7 @@ export default function SenderDashboardPage() {
           style={{ borderColor: colors.borderGray }}
         >
           <div
-            className="border-b"
+            className="border-b px-4 sm:px-6 lg:px-8"
             style={{
               borderColor: colors.borderGray,
               backgroundColor: colors.lightGray,
@@ -802,148 +812,121 @@ export default function SenderDashboardPage() {
           <div className="p-4 sm:p-6 lg:p-8">
             {activeTab === "available" ? (
               <div>
-                <div className="mb-6 sm:mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3
-                      className="text-lg sm:text-xl font-bold"
-                      style={{ color: colors.darkGray }}
-                    >
-                      Filters
-                    </h3>
-                    <button
-                      onClick={() => setShowFilters(!showFilters)}
-                      className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-800"
-                    >
-                      <Filter className="w-4 h-4 mr-1" />
-                      {showFilters ? "Hide" : "Show"} Filters
-                    </button>
+                <div className="mb-6 sm:mb-8 bg-gray-50 rounded-lg p-4 space-y-4 shadow-inner">
+                  <h3
+                    className="text-lg sm:text-xl font-bold"
+                    style={{ color: colors.darkGray }}
+                  >
+                    Find Your Perfect Travel Partner
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Price per Kg (Max: ${filters.pricePerKg})
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={filters.pricePerKg}
+                        onChange={(e) =>
+                          setFilters({
+                            ...filters,
+                            pricePerKg: parseInt(e.target.value),
+                          })
+                        }
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Traveler Gender
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {genderOptions.map((gender) => (
+                          <button
+                            key={gender}
+                            type="button"
+                            onClick={() =>
+                              handleFilterChange("genderPreference", gender)
+                            }
+                            className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                              filters.genderPreference === gender
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            }`}
+                          >
+                            {gender}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Arrival Date (On or after)
+                      </label>
+                      <input
+                        type="date"
+                        value={filters.arrivalDate || ""}
+                        onChange={(e) =>
+                          handleFilterChange("arrivalDate", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
+                      />
+                    </div>
                   </div>
-                  {showFilters && (
-                    <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Price per Kg (Max: ${filters.pricePerKg})
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={filters.pricePerKg}
-                          onChange={(e) =>
-                            setFilters({
-                              ...filters,
-                              pricePerKg: parseInt(e.target.value),
-                            })
-                          }
-                          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                        />
-                      </div>
+                </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Pickup City in Nepal
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {nepalCities.map((city) => (
-                            <button
-                              key={city}
-                              type="button"
-                              onClick={() =>
-                                handleFilterChange("pickupCities", city)
-                              }
-                              className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                                filters.pickupCities.includes(city)
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                              }`}
-                            >
-                              {city}
-                            </button>
-                          ))}
-                        </div>
+                <div className="mb-4 sm:mb-6">
+                  {filteredTrips.length > 0 ? (
+                    <p className="text-sm sm:text-base text-gray-600">
+                      Showing {filteredTrips.length} matching travelers.
+                    </p>
+                  ) : (
+                    <div className="text-center py-12 sm:py-16">
+                      <div
+                        className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg sm:rounded-xl lg:rounded-2xl mx-auto mb-4 sm:mb-6 flex items-center justify-center"
+                        style={{ backgroundColor: colors.lighterBlue }}
+                      >
+                        <svg
+                          className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          style={{ color: colors.primaryBlue }}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
+                          />
+                        </svg>
                       </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Item Preference
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {legalItems.map((item) => (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() =>
-                                handleFilterChange("itemPreferences", item)
-                              }
-                              className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                                filters.itemPreferences.includes(item)
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                              }`}
-                            >
-                              {item}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <h3
+                        className="text-lg sm:text-xl font-semibold mb-2"
+                        style={{ color: colors.darkGray }}
+                      >
+                        No available travelers yet
+                      </h3>
+                      <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
+                        Check back soon as more travelers post their trips
+                      </p>
+                      <button
+                        onClick={() => fetchAvailableTrips()}
+                        className="text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold transition-colors text-sm sm:text-base"
+                        style={{
+                          backgroundColor: colors.primaryBlue,
+                          hoverBackgroundColor: colors.primaryBlueHover,
+                        }}
+                      >
+                        Refresh Travelers
+                      </button>
                     </div>
                   )}
                 </div>
-                {filteredTrips.length > 0 ? (
-                  <div className="mb-4 sm:mb-6">
-                    <h3
-                      className="text-lg sm:text-xl font-semibold mb-1 sm:mb-2"
-                      style={{ color: colors.darkGray }}
-                    >
-                      Find Your Perfect Travel Partner
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-600">
-                      Showing {filteredTrips.length} verified travelers heading
-                      to your destination
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 sm:py-16">
-                    <div
-                      className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg sm:rounded-xl lg:rounded-2xl mx-auto mb-4 sm:mb-6 flex items-center justify-center"
-                      style={{ backgroundColor: colors.lighterBlue }}
-                    >
-                      <svg
-                        className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        style={{ color: colors.primaryBlue }}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 919-9"
-                        />
-                      </svg>
-                    </div>
-                    <h3
-                      className="text-lg sm:text-xl font-semibold mb-2"
-                      style={{ color: colors.darkGray }}
-                    >
-                      No available travelers yet
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-                      Check back soon as more travelers post their trips
-                    </p>
-                    <button
-                      onClick={() => fetchAvailableTrips()}
-                      className="text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-medium sm:font-semibold transition-colors text-sm sm:text-base"
-                      style={{
-                        backgroundColor: colors.primaryBlue,
-                        hoverBackgroundColor: colors.primaryBlueHover,
-                      }}
-                    >
-                      Refresh Travelers
-                    </button>
-                  </div>
-                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredTrips.map((trip) => (
@@ -1514,13 +1497,35 @@ export default function SenderDashboardPage() {
                         className="w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-800 focus:border-transparent transition-all text-sm sm:text-base"
                         style={{ borderColor: colors.borderGray }}
                         placeholder="5.0"
-                        max={selectedTrip.availableWeight}
+                        min="0"
                         step="0.1"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <div>
+                      <label
+                        className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2"
+                        style={{ color: colors.darkGray }}
+                      >
+                        Quantity *
+                      </label>
+                      <input
+                        type="number"
+                        value={requestData.quantity}
+                        onChange={(e) =>
+                          setRequestData({
+                            ...requestData,
+                            quantity: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-800 focus:border-transparent transition-all text-sm sm:text-base"
+                        style={{ borderColor: colors.borderGray }}
+                        placeholder="1"
+                        min="1"
+                      />
+                    </div>
                     <div>
                       <label
                         className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2"
@@ -1542,7 +1547,9 @@ export default function SenderDashboardPage() {
                         placeholder="Full name"
                       />
                     </div>
+                  </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div>
                       <label
                         className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2"
@@ -1564,60 +1571,36 @@ export default function SenderDashboardPage() {
                         placeholder="+977 XXX XXX XXXX"
                       />
                     </div>
-                  </div>
-
-                  <div>
-                    <label
-                      className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2"
-                      style={{ color: colors.darkGray }}
-                    >
-                      Delivery Address in Nepal *
-                    </label>
-                    <textarea
-                      value={requestData.recipientAddress}
-                      onChange={(e) =>
-                        setRequestData({
-                          ...requestData,
-                          recipientAddress: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-800 focus:border-transparent transition-all text-sm sm:text-base"
-                      style={{ borderColor: colors.borderGray }}
-                      rows="3"
-                      placeholder="Complete address with landmarks"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2"
-                      style={{ color: colors.darkGray }}
-                    >
-                      Pickup City in Nepal *
-                    </label>
-                    <select
-                      value={requestData.pickupCity}
-                      onChange={(e) =>
-                        setRequestData({
-                          ...requestData,
-                          pickupCity: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-800 focus:border-transparent transition-all text-sm sm:text-base"
-                      style={{ borderColor: colors.borderGray }}
-                      required
-                    >
-                      <option value="" disabled>
-                        Select a city
-                      </option>
-                      {selectedTrip.pickupCities.map((city) => (
-                        <option key={city} value={city}>
-                          {city}
+                    <div>
+                      <label
+                        className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2"
+                        style={{ color: colors.darkGray }}
+                      >
+                        Where will recipient pick the items from? *
+                      </label>
+                      <select
+                        value={requestData.pickupCity}
+                        onChange={(e) =>
+                          setRequestData({
+                            ...requestData,
+                            pickupCity: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-800 focus:border-transparent transition-all text-sm sm:text-base"
+                        style={{ borderColor: colors.borderGray }}
+                        required
+                      >
+                        <option value="" disabled>
+                          Select a city
                         </option>
-                      ))}
-                    </select>
+                        {selectedTrip.pickupCities.map((city) => (
+                          <option key={city} value={city}>
+                            {city}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-
                   <div>
                     <label
                       className="block text-xs sm:text-sm font-medium mb-1.5 sm:mb-2"

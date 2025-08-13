@@ -534,7 +534,7 @@ export default function GlobalNavigation() {
               <div className="relative dropdown-container hidden lg:block">
                 <button
                   onClick={() => setShowAccountDropdown(!showAccountDropdown)}
-                  className="flex items-center space-x-3 px-4 py-2 rounded-2xl transition-all duration-200 border hover:shadow-md bg-white/80 backdrop-blur-sm"
+                  className="flex items-center space-x-3 px-4 py-2 rounded-2xl transition-all duration-200 border hover:shadow-md bg-white/80 backdrop-blur-sm relative"
                   style={{
                     borderColor: colors.borderGray,
                     backgroundColor: colors.white,
@@ -589,6 +589,15 @@ export default function GlobalNavigation() {
                       </p>
                     </div>
                   </div>
+
+                  {unreadNotifications > 0 && (
+                    <div
+                      className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-white text-xs font-bold rounded-full"
+                      style={{ backgroundColor: colors.primaryRed }}
+                    >
+                      {unreadNotifications}
+                    </div>
+                  )}
 
                   <svg
                     className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
@@ -810,40 +819,50 @@ export default function GlobalNavigation() {
               </div>
             )}
 
-            <button
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="lg:hidden p-3 rounded-xl transition-colors border"
-              style={{
-                backgroundColor: colors.white,
-                borderColor: colors.borderGray,
-              }}
-            >
-              <svg
-                className={`w-6 h-6 transition-transform duration-200 ${
-                  showMobileMenu ? "rotate-90" : ""
-                }`}
-                style={{ color: colors.darkGray }}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="relative lg:hidden">
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="p-3 rounded-xl transition-colors border"
+                style={{
+                  backgroundColor: colors.white,
+                  borderColor: colors.borderGray,
+                }}
               >
-                {showMobileMenu ? (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                ) : (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                )}
-              </svg>
-            </button>
+                <svg
+                  className={`w-6 h-6 transition-transform duration-200 ${
+                    showMobileMenu ? "rotate-90" : ""
+                  }`}
+                  style={{ color: colors.darkGray }}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  {showMobileMenu ? (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  ) : (
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  )}
+                </svg>
+              </button>
+              {unreadNotifications > 0 && user && (
+                <div
+                  className="absolute top-2 right-1 transform translate-x-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-white text-xs font-bold rounded-full"
+                  style={{ backgroundColor: colors.primaryRed }}
+                >
+                  {unreadNotifications}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

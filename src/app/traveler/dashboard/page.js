@@ -112,6 +112,7 @@ function TravelerDashboard() {
   const fetchTrips = useCallback(async () => {
     if (!user?.uid) return;
     try {
+      // Fetch trips with status 'active' or 'pending_verification'
       const q = query(
         collection(db, "trips"),
         where("travelerId", "==", user.uid)
@@ -347,20 +348,45 @@ function TravelerDashboard() {
         eTicket: tripData.eTicket.name,
         travelerId: user.uid,
         travelerName: userProfile.verification?.fullName || user.phoneNumber,
+        travelerGender: userProfile.verification?.gender,
         travelerPhone: user.phoneNumber,
         travelerEmail: user.email, // Add traveler's email to the trip document
         verified: userProfile.verified || false,
-        status: "active",
+        status: "pending_verification", // Changed status to pending verification
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
       await addDoc(collection(db, "trips"), tripPayload);
+
+      // Send notification to support team
+      const supportUsersQuery = query(
+        collection(db, "users"),
+        where("role", "==", "support")
+      );
+      const supportUsersSnapshot = await getDocs(supportUsersQuery);
+      if (!supportUsersSnapshot.empty) {
+        const supportUserDoc = supportUsersSnapshot.docs[0];
+        const notificationPayload = {
+          id: new Date().getTime(),
+          type: "info",
+          title: "New Trip for Verification",
+          message: `A new trip from ${
+            userProfile.verification?.fullName || user.phoneNumber
+          } is pending verification.`,
+          read: false,
+          timestamp: new Date().toISOString(),
+        };
+        await updateDoc(doc(db, "users", supportUserDoc.id), {
+          notifications: arrayUnion(notificationPayload),
+        });
+      }
+
       setShowCreateTrip(false);
       fetchTrips();
       resetTripData();
       setShowNotification({
         isVisible: true,
-        message: "Trip created successfully!",
+        message: "Trip created successfully and is pending review!",
         type: "success",
       });
     } catch (error) {
@@ -584,6 +610,12 @@ function TravelerDashboard() {
     (r) => r.status === "pending"
   ).length;
 
+  // Filter trips into different lists based on status
+  const activeTrips = trips.filter((t) => t.status === "active");
+  const pendingReviewTrips = trips.filter(
+    (t) => t.status === "pending_verification"
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-red-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
@@ -596,7 +628,7 @@ function TravelerDashboard() {
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Active Trips</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {trips.filter((t) => t.status === "active").length}
+                  {activeTrips.length}
                 </p>
               </div>
             </div>
@@ -659,7 +691,8 @@ function TravelerDashboard() {
 
         {activeTab === "trips" && (
           <>
-            <div className="mb-8">
+            <div className="mb-8 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Your Trips</h2>
               <button
                 onClick={() => setShowCreateTrip(true)}
                 className="px-6 py-3 bg-blue-800 text-white rounded-lg hover:bg-blue-900 shadow-sm font-medium"
@@ -668,6 +701,65 @@ function TravelerDashboard() {
               </button>
             </div>
 
+            {/* Section for Trips Pending Review */}
+            <div className="bg-yellow-50 rounded-lg shadow mb-8">
+              <div className="px-6 py-4 border-b border-yellow-200">
+                <h3 className="text-lg font-semibold text-yellow-800">
+                  Trips Pending Review ({pendingReviewTrips.length})
+                </h3>
+              </div>
+              <div className="p-6">
+                {pendingReviewTrips.length > 0 ? (
+                  <div className="space-y-4">
+                    {pendingReviewTrips.map((trip) => (
+                      <div
+                        key={trip.id}
+                        className="border border-yellow-200 rounded-lg p-4 bg-yellow-50"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 mb-2">
+                              {trip.departureCity} → {trip.arrivalCity}
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-600">
+                              <div>
+                                <span className="font-medium">Flight:</span>{" "}
+                                {trip.flightNumber} ({trip.airline})
+                              </div>
+                              <div>
+                                <span className="font-medium">Departure:</span>{" "}
+                                {new Date(
+                                  trip.departureDate
+                                ).toLocaleDateString()}
+                              </div>
+                              <div>
+                                <span className="font-medium">Available:</span>{" "}
+                                {trip.availableWeight}kg
+                              </div>
+                              <div>
+                                <span className="font-medium">Price:</span> ${" "}
+                                {trip.pricePerKg}/kg
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <span className="px-3 py-1 bg-yellow-200 text-yellow-800 text-sm rounded-full">
+                              Pending
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-8">
+                    No trips are currently pending review.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Section for Active Trips */}
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -675,93 +767,85 @@ function TravelerDashboard() {
                 </h3>
               </div>
               <div className="p-6">
-                {trips.filter((t) => t.status === "active").length > 0 ? (
+                {activeTrips.length > 0 ? (
                   <div className="space-y-4">
-                    {trips
-                      .filter((t) => t.status === "active")
-                      .map((trip) => (
-                        <div
-                          key={trip.id}
-                          className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 mb-2">
-                                {trip.departureCity} → {trip.arrivalCity}
-                              </h4>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-600">
-                                <div>
-                                  <span className="font-medium">Flight:</span>{" "}
-                                  {trip.flightNumber} ({trip.airline})
-                                </div>
-                                <div>
-                                  <span className="font-medium">
-                                    Departure:
-                                  </span>{" "}
-                                  {new Date(
-                                    trip.departureDate
-                                  ).toLocaleDateString()}
-                                </div>
-                                <div>
-                                  <span className="font-medium">
-                                    Available:
-                                  </span>{" "}
-                                  {trip.availableWeight}kg
-                                </div>
-                                <div>
-                                  <span className="font-medium">Price:</span> ${" "}
-                                  {trip.pricePerKg}/kg
-                                </div>
+                    {activeTrips.map((trip) => (
+                      <div
+                        key={trip.id}
+                        className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 mb-2">
+                              {trip.departureCity} → {trip.arrivalCity}
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-600">
+                              <div>
+                                <span className="font-medium">Flight:</span>{" "}
+                                {trip.flightNumber} ({trip.airline})
                               </div>
-                              {trip.allowedItems &&
-                                trip.allowedItems.length > 0 && (
-                                  <div className="mt-2">
-                                    <span className="text-sm font-medium text-gray-600">
-                                      Items:{" "}
-                                    </span>
-                                    <span className="text-sm text-gray-600">
-                                      {trip.allowedItems.slice(0, 3).join(", ")}
-                                      {trip.allowedItems.length > 3 &&
-                                        ` +${
-                                          trip.allowedItems.length - 3
-                                        } more`}
-                                    </span>
-                                  </div>
-                                )}
-                              {trip.pickupCities &&
-                                trip.pickupCities.length > 0 && (
-                                  <div className="mt-2">
-                                    <span className="text-sm font-medium text-gray-600">
-                                      Pickup in Nepal:{" "}
-                                    </span>
-                                    <span className="text-sm text-gray-600">
-                                      {trip.pickupCities.join(", ")}
-                                    </span>
-                                  </div>
-                                )}
+                              <div>
+                                <span className="font-medium">Departure:</span>{" "}
+                                {new Date(
+                                  trip.departureDate
+                                ).toLocaleDateString()}
+                              </div>
+                              <div>
+                                <span className="font-medium">Available:</span>{" "}
+                                {trip.availableWeight}kg
+                              </div>
+                              <div>
+                                <span className="font-medium">Price:</span> ${" "}
+                                {trip.pricePerKg}/kg
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                                Active
-                              </span>
-                              <button
-                                onClick={() => handleEditTrip(trip)}
-                                className="p-2 text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Edit trip"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteTrip(trip.id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete trip"
-                              >
-                                <Trash className="w-4 h-4" />
-                              </button>
-                            </div>
+                            {trip.allowedItems &&
+                              trip.allowedItems.length > 0 && (
+                                <div className="mt-2">
+                                  <span className="text-sm font-medium text-gray-600">
+                                    Items:{" "}
+                                  </span>
+                                  <span className="text-sm text-gray-600">
+                                    {trip.allowedItems.slice(0, 3).join(", ")}
+                                    {trip.allowedItems.length > 3 &&
+                                      ` +${trip.allowedItems.length - 3} more`}
+                                  </span>
+                                </div>
+                              )}
+                            {trip.pickupCities &&
+                              trip.pickupCities.length > 0 && (
+                                <div className="mt-2">
+                                  <span className="text-sm font-medium text-gray-600">
+                                    Pickup in Nepal:{" "}
+                                  </span>
+                                  <span className="text-sm text-gray-600">
+                                    {trip.pickupCities.join(", ")}
+                                  </span>
+                                </div>
+                              )}
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                              Active
+                            </span>
+                            <button
+                              onClick={() => handleEditTrip(trip)}
+                              className="p-2 text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Edit trip"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTrip(trip.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete trip"
+                            >
+                              <Trash className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <p className="text-gray-500 text-center py-8">

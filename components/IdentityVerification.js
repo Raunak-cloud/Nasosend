@@ -3,7 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { doc, setDoc, getFirestore } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL, getStorage } from "firebase/storage";
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  getStorage,
+} from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getAuth,
@@ -22,12 +27,28 @@ import {
   Send,
   Loader2,
   Lock,
+  Upload,
 } from "lucide-react";
 
 // Initialize Firebase
 const db = getFirestore();
 const storage = getStorage();
 const auth = getAuth();
+
+const getAuthErrorText = (errorCode) => {
+  switch (errorCode) {
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+    case "auth/too-many-requests":
+      return "Too many verification attempts. Please try again later.";
+    case "auth/credential-already-in-use":
+      return "This email is already associated with another account.";
+    case "auth/email-already-in-use":
+      return "This email is already in use by another account.";
+    default:
+      return "An unknown error occurred. Please try again.";
+  }
+};
 
 export default function IdentityVerification() {
   const { user, loading } = useAuth();
@@ -44,6 +65,7 @@ export default function IdentityVerification() {
   });
 
   const [stateId, setStateId] = useState(null);
+  const [stateIdUrl, setStateIdUrl] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -55,7 +77,9 @@ export default function IdentityVerification() {
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
   const [pendingEmailUpdate, setPendingEmailUpdate] = useState(null);
 
-  // Check if the user is coming back from an email verification link
+  // Field validation errors
+  const [validationErrors, setValidationErrors] = useState({});
+
   useEffect(() => {
     const verifyEmailLink = async () => {
       if (isSignInWithEmailLink(auth, window.location.href)) {
@@ -67,35 +91,26 @@ export default function IdentityVerification() {
         if (email) {
           setIsVerifyingEmail(true);
           try {
-            // Create email credential for linking
             const credential = EmailAuthProvider.credentialWithLink(
               email,
               window.location.href
             );
 
             if (user) {
-              // Link the email credential to the existing user account
               await linkWithCredential(user, credential);
-
-              // Update the user's email if it's different
               if (user.email !== email) {
                 await updateEmail(user, email);
               }
-
-              console.log("Email successfully linked to account!");
             } else {
-              // Sign in with email link if no user is logged in
               await signInWithEmailLink(auth, email, window.location.href);
             }
 
-            // Clean up and update state
             window.localStorage.removeItem("emailForSignIn");
             setIsEmailVerified(true);
             setVerificationSent(false);
             setSubmitError("");
             setPendingEmailUpdate(email);
 
-            // Clean up URL
             if (window.history.replaceState) {
               window.history.replaceState(
                 {},
@@ -105,20 +120,7 @@ export default function IdentityVerification() {
             }
           } catch (error) {
             console.error("Error linking email:", error);
-            // Handle specific error cases
-            if (error.code === "auth/credential-already-in-use") {
-              setSubmitError(
-                "This email is already associated with another account."
-              );
-            } else if (error.code === "auth/email-already-in-use") {
-              setSubmitError(
-                "This email is already in use by another account."
-              );
-            } else {
-              setSubmitError(
-                "Failed to verify email. The link may be invalid or expired."
-              );
-            }
+            setSubmitError(getAuthErrorText(error.code));
           } finally {
             setIsVerifyingEmail(false);
           }
@@ -126,15 +128,19 @@ export default function IdentityVerification() {
       }
     };
 
-    // Load persisted form data
     const persistedData = localStorage.getItem("formData");
     if (persistedData) {
       setFormData(JSON.parse(persistedData));
     }
 
-    // Update email verification status based on user state
+    const persistedFile = localStorage.getItem("stateId");
+    const persistedFileUrl = localStorage.getItem("stateIdUrl");
+    if (persistedFile && persistedFileUrl) {
+      setStateId(JSON.parse(persistedFile));
+      setStateIdUrl(persistedFileUrl);
+    }
+
     if (user) {
-      // Check if user has verified email
       const hasVerifiedEmail =
         user.emailVerified ||
         user.providerData.some(
@@ -143,25 +149,21 @@ export default function IdentityVerification() {
 
       setIsEmailVerified(hasVerifiedEmail);
 
-      // Update form data with user's email if verified
       if (hasVerifiedEmail && user.email && user.email !== formData.email) {
         setFormData((prev) => ({ ...prev, email: user.email }));
       }
 
-      // Handle pending email update
       if (pendingEmailUpdate && pendingEmailUpdate !== formData.email) {
         setFormData((prev) => ({ ...prev, email: pendingEmailUpdate }));
         setPendingEmailUpdate(null);
       }
     }
 
-    // Only run email link verification if user exists
     if (user) {
       verifyEmailLink();
     }
   }, [user, pendingEmailUpdate]);
 
-  // Redirect if not authenticated
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -183,8 +185,8 @@ export default function IdentityVerification() {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     localStorage.setItem("formData", JSON.stringify(newFormData));
+    setValidationErrors((prev) => ({ ...prev, [name]: "" }));
 
-    // Reset email verification if email changes
     if (name === "email" && value !== user?.email) {
       setIsEmailVerified(false);
       setVerificationSent(false);
@@ -211,102 +213,135 @@ export default function IdentityVerification() {
       window.localStorage.setItem("emailForSignIn", formData.email);
       setVerificationSent(true);
       setSubmitError("");
-      console.log("Verification email sent successfully.");
     } catch (error) {
       console.error("Error sending verification email:", error);
-      if (error.code === "auth/invalid-email") {
-        setSubmitError("Please enter a valid email address.");
-      } else if (error.code === "auth/too-many-requests") {
-        setSubmitError(
-          "Too many verification attempts. Please try again later."
-        );
-      } else {
-        setSubmitError("Failed to send verification email. Please try again.");
-      }
+      setSubmitError(getAuthErrorText(error.code));
     } finally {
       setIsVerifyingEmail(false);
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const allowedTypes = [
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "application/pdf",
-      ];
-      if (!allowedTypes.includes(file.type)) {
-        setSubmitError(
-          "Please upload a valid image (JPEG, JPG, PNG) or PDF file."
-        );
-        return;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        setSubmitError("File size must be less than 5MB.");
-        return;
-      }
-
-      setStateId(file);
+    if (!file) {
+      setStateId(null);
+      setStateIdUrl(null);
+      localStorage.removeItem("stateId");
+      localStorage.removeItem("stateIdUrl");
+      setUploadProgress(0);
       setSubmitError("");
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "application/pdf",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      setSubmitError(
+        "Please upload a valid image (JPEG, JPG, PNG) or PDF file."
+      );
+      setStateId(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitError("File size must be less than 5MB.");
+      setStateId(null);
+      return;
+    }
+
+    setSubmitError("");
+    setIsSubmitting(true);
+    setUploadProgress(0);
+
+    try {
+      const fileExtension = file.name.split(".").pop();
+      const fileName = `state-ids/${
+        user.uid
+      }/state-id-${Date.now()}.${fileExtension}`;
+      const storageRef = ref(storage, fileName);
+
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.error("Upload failed:", error);
+          setSubmitError("Failed to upload file. Please try again.");
+          setIsSubmitting(false);
+          setUploadProgress(0);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          setStateId({ name: file.name, type: file.type });
+          setStateIdUrl(downloadURL);
+          localStorage.setItem(
+            "stateId",
+            JSON.stringify({ name: file.name, type: file.type })
+          );
+          localStorage.setItem("stateIdUrl", downloadURL);
+          setSubmitError("");
+          setIsSubmitting(false);
+          setUploadProgress(0);
+        }
+      );
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      setSubmitError("An error occurred during file upload.");
+      setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
   const validateForm = () => {
+    let errors = {};
+    let formIsValid = true;
+
     if (!isEmailVerified) {
       setSubmitError("Please verify your email address first.");
-      return false;
+      formIsValid = false;
     }
+
     if (!formData.fullName.trim()) {
-      setSubmitError("Full name is required.");
-      return false;
+      errors.fullName = "Full name is required.";
+      formIsValid = false;
     }
     if (!formData.streetAddress.trim()) {
-      setSubmitError("Street address is required.");
-      return false;
+      errors.streetAddress = "Street address is required.";
+      formIsValid = false;
     }
     if (!formData.city.trim()) {
-      setSubmitError("City is required.");
-      return false;
+      errors.city = "City is required.";
+      formIsValid = false;
     }
     if (!formData.postcode.trim()) {
-      setSubmitError("Postcode is required.");
-      return false;
+      errors.postcode = "Postcode is required.";
+      formIsValid = false;
     }
     if (!formData.gender) {
-      setSubmitError("Gender is required.");
-      return false;
+      errors.gender = "Gender is required.";
+      formIsValid = false;
     }
-    if (!stateId) {
-      setSubmitError("State ID document is required.");
-      return false;
+    if (!stateIdUrl) {
+      errors.stateId = "State ID document is required.";
+      formIsValid = false;
     }
 
     const postcodeRegex = /^\d{4}$/;
-    if (!postcodeRegex.test(formData.postcode)) {
-      setSubmitError("Please enter a valid Australian postcode (4 digits).");
-      return false;
+    if (formData.postcode.trim() && !postcodeRegex.test(formData.postcode)) {
+      errors.postcode = "Please enter a valid Australian postcode (4 digits).";
+      formIsValid = false;
     }
 
-    return true;
-  };
-
-  const uploadStateId = async (file, userId) => {
-    try {
-      const fileExtension = file.name.split(".").pop();
-      const fileName = `state-ids/${userId}/state-id-${Date.now()}.${fileExtension}`;
-      const storageRef = ref(storage, fileName);
-
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-
-      return downloadURL;
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      throw new Error("Failed to upload state ID document.");
-    }
+    setValidationErrors(errors);
+    return formIsValid;
   };
 
   const handleSubmit = async (e) => {
@@ -316,14 +351,9 @@ export default function IdentityVerification() {
 
     setIsSubmitting(true);
     setSubmitError("");
-    setUploadProgress(0);
+    setUploadProgress(100);
 
     try {
-      setUploadProgress(25);
-
-      const stateIdUrl = await uploadStateId(stateId, user.uid);
-      setUploadProgress(75);
-
       const verificationData = {
         fullName: formData.fullName.trim(),
         streetAddress: formData.streetAddress.trim(),
@@ -349,11 +379,10 @@ export default function IdentityVerification() {
         { merge: true }
       );
 
-      setUploadProgress(100);
       setSubmitSuccess(true);
-
-      // Clear localStorage data on successful submission
       localStorage.removeItem("formData");
+      localStorage.removeItem("stateId");
+      localStorage.removeItem("stateIdUrl");
 
       setTimeout(() => {
         router.push("/traveler/dashboard");
@@ -366,6 +395,7 @@ export default function IdentityVerification() {
       );
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -409,7 +439,6 @@ export default function IdentityVerification() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl w-full mx-auto">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
             <svg
@@ -435,7 +464,6 @@ export default function IdentityVerification() {
           </p>
         </div>
 
-        {/* Info Banner */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-200">
           <div className="flex items-start">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
@@ -466,11 +494,9 @@ export default function IdentityVerification() {
           </div>
         </div>
 
-        {/* Main Form */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200 overflow-hidden">
           <form onSubmit={handleSubmit}>
             <div className="p-8 sm:p-12 space-y-8">
-              {/* Personal Information Section */}
               <div>
                 <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
                   <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mr-3">
@@ -492,7 +518,6 @@ export default function IdentityVerification() {
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Full Name */}
                   <div className="md:col-span-2">
                     <label
                       htmlFor="fullName"
@@ -504,15 +529,22 @@ export default function IdentityVerification() {
                       id="fullName"
                       name="fullName"
                       type="text"
-                      required
                       value={formData.fullName}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                        validationErrors.fullName
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="Enter your full legal name as it appears on your ID"
                     />
+                    {validationErrors.fullName && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {validationErrors.fullName}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Email Verification Field */}
                   <div className="md:col-span-2">
                     <label
                       htmlFor="email"
@@ -526,12 +558,13 @@ export default function IdentityVerification() {
                           id="email"
                           name="email"
                           type="email"
-                          required
                           value={formData.email}
                           onChange={handleInputChange}
                           className={`w-full px-4 py-3 border ${
                             isEmailVerified
                               ? "border-green-500 bg-green-50"
+                              : validationErrors.email
+                              ? "border-red-500"
                               : "border-gray-300"
                           } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12`}
                           placeholder="Enter your email address"
@@ -578,7 +611,6 @@ export default function IdentityVerification() {
                     )}
                   </div>
 
-                  {/* Street Address */}
                   <div className="md:col-span-2">
                     <label
                       htmlFor="streetAddress"
@@ -590,15 +622,22 @@ export default function IdentityVerification() {
                       id="streetAddress"
                       name="streetAddress"
                       type="text"
-                      required
                       value={formData.streetAddress}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                        validationErrors.streetAddress
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="123 Main Street"
                     />
+                    {validationErrors.streetAddress && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {validationErrors.streetAddress}
+                      </p>
+                    )}
                   </div>
 
-                  {/* City */}
                   <div>
                     <label
                       htmlFor="city"
@@ -610,15 +649,22 @@ export default function IdentityVerification() {
                       id="city"
                       name="city"
                       type="text"
-                      required
                       value={formData.city}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                        validationErrors.city
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="Sydney"
                     />
+                    {validationErrors.city && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {validationErrors.city}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Postcode */}
                   <div>
                     <label
                       htmlFor="postcode"
@@ -630,16 +676,23 @@ export default function IdentityVerification() {
                       id="postcode"
                       name="postcode"
                       type="text"
-                      required
                       maxLength="4"
                       value={formData.postcode}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                        validationErrors.postcode
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="2000"
                     />
+                    {validationErrors.postcode && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {validationErrors.postcode}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Gender */}
                   <div>
                     <label
                       htmlFor="gender"
@@ -650,18 +703,25 @@ export default function IdentityVerification() {
                     <select
                       id="gender"
                       name="gender"
-                      required
                       value={formData.gender}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                        validationErrors.gender
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                     >
                       <option value="">Select gender</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
                     </select>
+                    {validationErrors.gender && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {validationErrors.gender}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Country */}
                   <div>
                     <label
                       htmlFor="country"
@@ -681,7 +741,6 @@ export default function IdentityVerification() {
                 </div>
               </div>
 
-              {/* Document Upload Section */}
               <div>
                 <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
                   <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mr-3">
@@ -709,35 +768,40 @@ export default function IdentityVerification() {
                   >
                     State ID Document *
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-blue-400 transition-all">
+                  <div
+                    className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                      validationErrors.stateId
+                        ? "border-red-500"
+                        : "border-gray-300 hover:border-blue-400"
+                    }`}
+                  >
                     <input
                       id="stateId"
                       name="stateId"
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf"
-                      required
                       onChange={handleFileChange}
                       className="hidden"
                     />
                     <label htmlFor="stateId" className="cursor-pointer">
                       <div className="flex flex-col items-center">
-                        <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
-                          <svg
-                            className="w-8 h-8 text-blue-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                            />
-                          </svg>
+                        <div
+                          className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
+                            stateIdUrl
+                              ? "bg-green-100 text-green-600"
+                              : "bg-blue-100 text-blue-600"
+                          }`}
+                        >
+                          {stateIdUrl ? (
+                            <CheckCircle className="w-8 h-8" />
+                          ) : (
+                            <Upload className="w-8 h-8" />
+                          )}
                         </div>
                         <p className="text-lg font-semibold text-gray-700 mb-2">
-                          {stateId ? stateId.name : "Upload Your ID Document"}
+                          {stateId
+                            ? `File uploaded: ${stateId.name}`
+                            : "Upload Your ID Document"}
                         </p>
                         <p className="text-sm text-gray-500 mb-4">
                           Driver's License, State ID, or Passport
@@ -748,12 +812,16 @@ export default function IdentityVerification() {
                       </div>
                     </label>
                   </div>
+                  {validationErrors.stateId && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {validationErrors.stateId}
+                    </p>
+                  )}
                   <p className="mt-3 text-sm text-gray-500">
                     Accepted formats: JPEG, PNG, PDF • Maximum size: 5MB
                   </p>
                 </div>
 
-                {/* Document Requirements */}
                 <div className="mt-6 bg-gray-50 rounded-2xl p-6">
                   <h4 className="font-semibold text-gray-700 mb-4 flex items-center">
                     <div className="w-6 h-6 bg-amber-500 rounded-lg flex items-center justify-center mr-2">
@@ -794,7 +862,6 @@ export default function IdentityVerification() {
                 </div>
               </div>
 
-              {/* Error Message */}
               {submitError && (
                 <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
                   <div className="flex items-center">
@@ -818,12 +885,11 @@ export default function IdentityVerification() {
                 </div>
               )}
 
-              {/* Upload Progress */}
-              {isSubmitting && uploadProgress > 0 && (
+              {isSubmitting && uploadProgress > 0 && uploadProgress < 100 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
                   <div className="flex justify-between text-sm text-blue-800 mb-2">
-                    <span>Processing verification...</span>
-                    <span>{uploadProgress}%</span>
+                    <span>Uploading file...</span>
+                    <span>{Math.round(uploadProgress)}%</span>
                   </div>
                   <div className="bg-blue-200 rounded-full h-2">
                     <div
@@ -835,17 +901,16 @@ export default function IdentityVerification() {
               )}
             </div>
 
-            {/* Submit Button */}
             <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-8 sm:px-12 py-6 border-t border-gray-200">
               <button
                 type="submit"
-                disabled={isSubmitting || !isEmailVerified}
+                disabled={isSubmitting || !isEmailVerified || !stateIdUrl}
                 className={`w-full text-white py-4 px-8 rounded-2xl font-bold text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 shadow-lg
-                ${
-                  isSubmitting || !isEmailVerified
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                }`}
+                  ${
+                    isSubmitting || !isEmailVerified || !stateIdUrl
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  }`}
               >
                 {isSubmitting ? (
                   <div className="flex items-center justify-center">
@@ -874,17 +939,17 @@ export default function IdentityVerification() {
                   "Submit Identity Verification"
                 )}
               </button>
-              {!isEmailVerified && (
+              {(!isEmailVerified || !stateIdUrl) && (
                 <div className="mt-4 p-3 bg-red-50 rounded-xl text-sm text-red-700 text-center flex items-center justify-center">
                   <Lock className="w-4 h-4 mr-2" />
-                  Please verify your email to enable submission.
+                  Please verify your email and upload a document to enable
+                  submission.
                 </div>
               )}
             </div>
           </form>
         </div>
 
-        {/* Security Notice */}
         <div className="mt-8 text-center">
           <div className="inline-flex items-center px-4 py-2 bg-green-50 border border-green-200 rounded-full">
             <svg
