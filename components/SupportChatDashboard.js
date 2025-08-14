@@ -467,8 +467,8 @@ const SupportChatDashboard = ({ agentId, agentProfile }) => {
     [agentId, selectedSession]
   );
 
-  // Use canned response
-  const useCannedResponse = useCallback((response) => {
+  // Handle canned response selection
+  const handleCannedResponse = useCallback((response) => {
     setCurrentMessage(response);
     inputRef.current?.focus();
   }, []);
@@ -817,7 +817,7 @@ const SupportChatDashboard = ({ agentId, agentProfile }) => {
                 {cannedResponses.slice(0, 3).map((response, idx) => (
                   <button
                     key={idx}
-                    onClick={() => useCannedResponse(response)}
+                    onClick={() => handleCannedResponse(response)}
                     className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs whitespace-nowrap"
                   >
                     {response.substring(0, 30)}...
