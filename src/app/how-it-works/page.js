@@ -100,12 +100,12 @@ const HowItWorks = () => {
       ],
     },
     {
-      title: "Connect with Travelers",
+      title: "Browse available Travelers",
       description:
         "Browse verified travelers heading to Nepal or wait for them to contact you.",
       details: [
-        "View traveler profiles",
-        "Check ratings and reviews",
+        "View available travlers",
+        "Check if they match your preferences",
         "Compare offers",
       ],
     },
@@ -120,13 +120,12 @@ const HowItWorks = () => {
       ],
     },
     {
-      title: "Track & Receive",
-      description:
-        "Monitor your package's journey and confirm delivery in Nepal.",
+      title: "Connect with Travelers",
+      description: "Request for a connection.",
       details: [
-        "Real-time tracking",
-        "Photo confirmations",
-        "Delivery notifications",
+        "Real-time notifications",
+        "Updates via email",
+        "You are ready to send your items",
       ],
     },
   ];
@@ -198,18 +197,17 @@ const HowItWorks = () => {
     {
       icon: <DollarSign />,
       title: "Zero Commission",
-      description:
-        "Travelers keep 100% of earnings, affordable token system for senders",
+      description: "Travelers keep 100% of earnings",
     },
     {
       icon: <Shield />,
-      title: "Secure & Insured",
-      description: "Every transaction is protected and insured",
+      title: "Flexibility",
+      description: "Senders and travelers comminicate directly",
     },
     {
       icon: <Users />,
       title: "Trusted Community",
-      description: "Verified users with ratings and reviews",
+      description: "Verified users",
     },
   ];
 
