@@ -34,9 +34,6 @@ export default function ProfilePage() {
     country: "",
     postalCode: "",
     gender: "male",
-    emergencyContact: "",
-    emergencyName: "",
-    emergencyRelation: "",
   });
 
   useEffect(() => {
@@ -57,15 +54,6 @@ export default function ProfilePage() {
         country: userProfile.country || "Australia",
         postalCode: userProfile.postalCode || "",
         gender: userProfile.gender || "male",
-        emergencyContact:
-          userProfile.emergencyContact ||
-          userProfile.verification?.emergencyContact ||
-          "",
-        emergencyName:
-          userProfile.emergencyName ||
-          userProfile.verification?.emergencyName ||
-          "",
-        emergencyRelation: userProfile.emergencyRelation || "",
       });
     }
   }, [userProfile]);
@@ -130,9 +118,7 @@ export default function ProfilePage() {
         country: profileData.country,
         postalCode: profileData.postalCode,
         gender: profileData.gender,
-        emergencyContact: profileData.emergencyContact,
-        emergencyName: profileData.emergencyName,
-        emergencyRelation: profileData.emergencyRelation,
+
         updatedAt: new Date(),
       });
 
@@ -156,7 +142,7 @@ export default function ProfilePage() {
   const tabs = [
     { id: "personal", label: "Personal Info", icon: User },
     { id: "contact", label: "Contact & Address", icon: MapPin },
-    { id: "emergency", label: "Emergency Contact", icon: Heart },
+
     ...(userProfile?.role === "traveler"
       ? [{ id: "verification", label: "Verification", icon: Shield }]
       : []),
@@ -501,105 +487,6 @@ export default function ProfilePage() {
                         placeholder="2000"
                       />
                     </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "emergency" && (
-              <div className="space-y-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <Heart className="w-6 h-6 text-red-600" />
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Emergency Contact
-                  </h2>
-                </div>
-
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200 mb-6">
-                  <div className="flex items-start gap-3">
-                    <Shield className="w-5 h-5 text-amber-600 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-amber-900">
-                        Important Safety Information
-                      </p>
-                      <p className="text-amber-800 text-sm mt-1">
-                        Emergency contact information is crucial for traveler
-                        safety and will only be used in genuine emergencies.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
-                        Emergency Contact Name
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.emergencyName}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            emergencyName: e.target.value,
-                          })
-                        }
-                        disabled={!isEditing}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-all duration-200"
-                        placeholder="Full name of emergency contact"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
-                        Relationship
-                      </label>
-                      <select
-                        value={profileData.emergencyRelation}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            emergencyRelation: e.target.value,
-                          })
-                        }
-                        disabled={!isEditing}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-all duration-200"
-                      >
-                        <option value="">Select relationship</option>
-                        <option value="spouse">Spouse</option>
-                        <option value="parent">Parent</option>
-                        <option value="sibling">Sibling</option>
-                        <option value="child">Child</option>
-                        <option value="friend">Friend</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      Emergency Contact Number
-                    </label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="tel"
-                        value={profileData.emergencyContact}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            emergencyContact: e.target.value,
-                          })
-                        }
-                        disabled={!isEditing}
-                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-all duration-200"
-                        placeholder="+61 XXX XXX XXX"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Include country code for international numbers
-                    </p>
                   </div>
                 </div>
               </div>

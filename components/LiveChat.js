@@ -34,31 +34,14 @@ import {
   X,
   Send,
   Minimize2,
-  User,
-  Bot,
   Clock,
   CheckCheck,
-  AlertCircle,
   Paperclip,
-  Volume2,
   Smile,
-  Wifi,
-  WifiOff,
   RefreshCw,
-  Phone,
-  Video,
-  MoreVertical,
-  Download,
-  Shield,
-  AlertTriangle,
   Star,
-  ThumbsUp,
-  ThumbsDown,
   Image as ImageIcon,
   FileText,
-  Mic,
-  MicOff,
-  StopCircle,
 } from "lucide-react";
 
 const LiveChat = ({ userId, userName, userEmail }) => {
@@ -83,17 +66,14 @@ const LiveChat = ({ userId, userName, userEmail }) => {
   const [showRating, setShowRating] = useState(false);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState(null);
 
   // Refs
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const audioRef = useRef(new Audio("/sounds/notification.mp3"));
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const unsubscribeMessagesRef = useRef(null);
@@ -104,7 +84,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
   const MAX_MESSAGE_LENGTH = 1000;
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   const TYPING_TIMEOUT = 3000;
-  const RECONNECT_DELAY = 5000;
 
   const emojis = ["😊", "😂", "❤️", "👍", "👎", "🙏", "🎉", "😢", "😡", "🤔"];
 
@@ -261,11 +240,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
 
       setMessages(newMessages);
 
-      // Play sound for new agent messages
-      if (hasNewAgentMessage && soundEnabled && !document.hasFocus()) {
-        playNotificationSound();
-      }
-
       // Mark messages as read if chat is open
       if (isOpen && hasNewAgentMessage) {
         markMessagesAsRead();
@@ -279,7 +253,7 @@ const LiveChat = ({ userId, userName, userEmail }) => {
         unsubscribeMessagesRef.current();
       }
     };
-  }, [sessionId, isOpen, soundEnabled]);
+  }, [sessionId, isOpen]);
 
   // Subscribe to queue position
   useEffect(() => {
@@ -460,66 +434,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
     [sessionId]
   );
 
-  // Start voice recording
-  const startRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
-        });
-
-        // Upload audio
-        setIsUploading(true);
-        try {
-          const storageRef = ref(
-            storage,
-            `chat-audio/${sessionId}/${Date.now()}_audio.webm`
-          );
-          const snapshot = await uploadBytes(storageRef, audioBlob);
-          const downloadURL = await getDownloadURL(snapshot.ref);
-
-          // Send as message
-          await addDoc(collection(db, "chatSessions", sessionId, "messages"), {
-            text: "🎤 Voice message",
-            senderId: userId,
-            senderName: userName || "Customer",
-            senderType: "customer",
-            timestamp: serverTimestamp(),
-            status: "sent",
-            attachments: [
-              {
-                url: downloadURL,
-                name: "Voice message",
-                type: "audio/webm",
-              },
-            ],
-          });
-        } catch (error) {
-          console.error("Error uploading audio:", error);
-        } finally {
-          setIsUploading(false);
-        }
-
-        // Clean up
-        stream.getTracks().forEach((track) => track.stop());
-      };
-
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error("Error starting recording:", error);
-      alert("Microphone access denied");
-    }
-  }, [sessionId, userId, userName]);
-
   // Stop voice recording
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -592,15 +506,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
       setSupportAgent(null);
     }
   }, [sessionId, chatSession]);
-
-  // Play notification sound
-  const playNotificationSound = useCallback(() => {
-    if (soundEnabled && audioRef.current) {
-      audioRef.current
-        .play()
-        .catch((e) => console.log("Audio play failed:", e));
-    }
-  }, [soundEnabled]);
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
@@ -710,16 +615,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setSoundEnabled(!soundEnabled)}
-                    className="p-1 hover:bg-white/20 rounded transition-colors"
-                  >
-                    {soundEnabled ? (
-                      <Volume2 className="w-4 h-4" />
-                    ) : (
-                      <VolumeX className="w-4 h-4" />
-                    )}
-                  </button>
                   <button
                     onClick={() => setIsMinimized(!isMinimized)}
                     className="p-1 hover:bg-white/20 rounded transition-colors"
@@ -972,22 +867,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
                           <RefreshCw className="w-4 h-4 animate-spin" />
                         ) : (
                           <Paperclip className="w-4 h-4" />
-                        )}
-                      </button>
-
-                      {/* Voice Recording */}
-                      <button
-                        onClick={isRecording ? stopRecording : startRecording}
-                        className={`p-2 transition-colors ${
-                          isRecording
-                            ? "text-red-500 hover:text-red-700"
-                            : "text-gray-500 hover:text-gray-700"
-                        }`}
-                      >
-                        {isRecording ? (
-                          <StopCircle className="w-4 h-4" />
-                        ) : (
-                          <Mic className="w-4 h-4" />
                         )}
                       </button>
 

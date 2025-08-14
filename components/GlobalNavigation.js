@@ -490,7 +490,7 @@ export default function GlobalNavigation() {
                 <Image
                   src="/nasosend.png"
                   alt="Nasosend Logo"
-                  width={90}
+                  width={55}
                   height={60}
                   priority
                 />
