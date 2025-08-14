@@ -168,7 +168,7 @@ export default function SenderVerificationPage() {
               </button>
 
               <button
-                onClick={() => router.push("/support")}
+                onClick={() => router.push("/help-center")}
                 className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 transform hover:scale-105 shadow-lg"
               >
                 Contact Support

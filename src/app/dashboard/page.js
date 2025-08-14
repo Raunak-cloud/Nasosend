@@ -725,7 +725,7 @@ export default function DashboardPage() {
                 How It Works
               </a>
               <a
-                href="/support"
+                href="/help-center"
                 className="inline-flex items-center justify-center px-4 py-2.5 font-medium rounded-lg hover:bg-gray-50 transition-all duration-200 transform hover:scale-105 shadow-md border text-sm"
                 style={{
                   backgroundColor: colors.white,

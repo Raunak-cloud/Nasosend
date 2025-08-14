@@ -1,3 +1,4 @@
+// components/LiveChat.js
 "use client";
 
 import React, {
@@ -8,8 +9,28 @@ import React, {
   useMemo,
 } from "react";
 import Image from "next/image";
+import { db, storage } from "@/lib/firebase";
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  getDocs,
+  where,
+  limit,
+  writeBatch,
+} from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   MessageCircle,
+  Check,
   X,
   Send,
   Minimize2,
@@ -19,489 +40,1060 @@ import {
   CheckCheck,
   AlertCircle,
   Paperclip,
+  Volume2,
   Smile,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Phone,
+  Video,
+  MoreVertical,
+  Download,
+  Shield,
+  AlertTriangle,
+  Star,
+  ThumbsUp,
+  ThumbsDown,
+  Image as ImageIcon,
+  FileText,
+  Mic,
+  MicOff,
+  StopCircle,
 } from "lucide-react";
 
-const LiveChat = ({ isOpen, onToggle, isAvailable }) => {
+const LiveChat = ({ userId, userName, userEmail }) => {
+  // Core state
+  const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState("disconnected"); // disconnected, connecting, connected
-  const [supportAgent, setSupportAgent] = useState(null);
+  const [agentTyping, setAgentTyping] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
   const [chatSession, setChatSession] = useState(null);
+  const [supportAgent, setSupportAgent] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState("disconnected");
+
+  // Enhanced state
+  const [queuePosition, setQueuePosition] = useState(0);
+  const [estimatedWaitTime, setEstimatedWaitTime] = useState(0);
+  const [attachments, setAttachments] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showRating, setShowRating] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [feedback, setFeedback] = useState("");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+
+  // Refs
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const audioRef = useRef(new Audio("/sounds/notification.mp3"));
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const unsubscribeMessagesRef = useRef(null);
+  const unsubscribeSessionRef = useRef(null);
+  const unsubscribeQueueRef = useRef(null);
 
-  // Memoized support agents to prevent recreation on every render
-  const supportAgents = useMemo(
-    () => [
-      {
-        id: 1,
-        name: "Sarah Wilson",
-        avatar:
-          "https://ui-avatars.com/api/?name=Sarah+Wilson&background=3b82f6&color=fff",
-        status: "online",
-      },
-      {
-        id: 2,
-        name: "David Chen",
-        avatar:
-          "https://ui-avatars.com/api/?name=David+Chen&background=10b981&color=fff",
-        status: "online",
-      },
-      {
-        id: 3,
-        name: "Maya Patel",
-        avatar:
-          "https://ui-avatars.com/api/?name=Maya+Patel&background=8b5cf6&color=fff",
-        status: "online",
-      },
-    ],
-    []
-  );
+  // Constants
+  const MAX_MESSAGE_LENGTH = 1000;
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const TYPING_TIMEOUT = 3000;
+  const RECONNECT_DELAY = 5000;
 
-  // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const emojis = ["😊", "😂", "❤️", "👍", "👎", "🙏", "🎉", "😢", "😡", "🤔"];
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // Initialize or restore chat session
+  const initializeChat = useCallback(async () => {
+    if (!userId) return;
 
-  // Memoized initialize chat function
-  const initializeChat = useCallback(() => {
     setConnectionStatus("connecting");
 
-    // Simulate connection delay
-    setTimeout(() => {
-      const randomAgent =
-        supportAgents[Math.floor(Math.random() * supportAgents.length)];
-      setSupportAgent(randomAgent);
-      setConnectionStatus("connected");
-      setChatSession({
-        id: `chat_${Date.now()}`,
-        startTime: new Date(),
-        agent: randomAgent,
+    try {
+      // Check for existing active session
+      const sessionsQuery = query(
+        collection(db, "chatSessions"),
+        where("customerId", "==", userId),
+        where("status", "in", ["waiting", "active"]),
+        limit(1)
+      );
+
+      const sessionSnapshot = await getDocs(sessionsQuery);
+
+      if (!sessionSnapshot.empty) {
+        // Restore existing session
+        const existingSession = sessionSnapshot.docs[0];
+        setSessionId(existingSession.id);
+        setChatSession(existingSession.data());
+
+        if (
+          existingSession.data().status === "active" &&
+          existingSession.data().agentId
+        ) {
+          // Fetch agent details
+          const agentDoc = await getDoc(
+            doc(db, "supportAgents", existingSession.data().agentId)
+          );
+          if (agentDoc.exists()) {
+            setSupportAgent(agentDoc.data());
+          }
+        }
+
+        setConnectionStatus("connected");
+      } else {
+        // Create new session
+        const newSession = {
+          customerId: userId,
+          customerName: userName || "Guest",
+          customerEmail: userEmail || "",
+          agentId: null,
+          agentName: null,
+          status: "waiting",
+          department: "general",
+          priority: "normal",
+          createdAt: serverTimestamp(),
+          lastMessageAt: serverTimestamp(),
+          unreadCount: { customer: 0, agent: 0 },
+        };
+
+        const sessionRef = await addDoc(
+          collection(db, "chatSessions"),
+          newSession
+        );
+        setSessionId(sessionRef.id);
+        setChatSession(newSession);
+
+        // Add to queue
+        await addDoc(collection(db, "chatQueue"), {
+          sessionId: sessionRef.id,
+          customerId: userId,
+          priority: "normal",
+          department: "general",
+          createdAt: serverTimestamp(),
+        });
+
+        // Send initial system message
+        await addDoc(
+          collection(db, "chatSessions", sessionRef.id, "messages"),
+          {
+            text: "Welcome to Nasosend Support! You're being connected to the next available agent.",
+            senderId: "system",
+            senderName: "System",
+            senderType: "system",
+            timestamp: serverTimestamp(),
+            status: "delivered",
+          }
+        );
+
+        setConnectionStatus("connected");
+      }
+    } catch (error) {
+      console.error("Error initializing chat:", error);
+      setConnectionStatus("failed");
+    }
+  }, [userId, userName, userEmail]);
+
+  // Subscribe to chat session updates
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const sessionRef = doc(db, "chatSessions", sessionId);
+
+    unsubscribeSessionRef.current = onSnapshot(sessionRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const sessionData = snapshot.data();
+        setChatSession(sessionData);
+
+        // Check if agent joined
+        if (
+          sessionData.status === "active" &&
+          sessionData.agentId &&
+          !supportAgent
+        ) {
+          // Fetch agent details
+          getDoc(doc(db, "supportAgents", sessionData.agentId)).then(
+            (agentDoc) => {
+              if (agentDoc.exists()) {
+                setSupportAgent(agentDoc.data());
+                playNotificationSound();
+              }
+            }
+          );
+        }
+
+        // Update unread count
+        setUnreadCount(sessionData.unreadCount?.customer || 0);
+      }
+    });
+
+    return () => {
+      if (unsubscribeSessionRef.current) {
+        unsubscribeSessionRef.current();
+      }
+    };
+  }, [sessionId, supportAgent]);
+
+  // Subscribe to messages
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const messagesRef = collection(db, "chatSessions", sessionId, "messages");
+    const messagesQuery = query(messagesRef, orderBy("timestamp", "asc"));
+
+    unsubscribeMessagesRef.current = onSnapshot(messagesQuery, (snapshot) => {
+      const newMessages = [];
+      let hasNewAgentMessage = false;
+
+      snapshot.forEach((doc) => {
+        const message = { id: doc.id, ...doc.data() };
+        newMessages.push(message);
+
+        // Check for new agent messages
+        if (message.senderType === "agent" && !message.read) {
+          hasNewAgentMessage = true;
+        }
       });
 
-      // Add welcome message
-      const welcomeMessage = {
-        id: Date.now(),
-        text: `Hi! I'm ${randomAgent.name} from Nasosend support. How can I help you today?`,
-        sender: "agent",
-        timestamp: new Date(),
-        status: "delivered",
+      setMessages(newMessages);
+
+      // Play sound for new agent messages
+      if (hasNewAgentMessage && soundEnabled && !document.hasFocus()) {
+        playNotificationSound();
+      }
+
+      // Mark messages as read if chat is open
+      if (isOpen && hasNewAgentMessage) {
+        markMessagesAsRead();
+      }
+
+      scrollToBottom();
+    });
+
+    return () => {
+      if (unsubscribeMessagesRef.current) {
+        unsubscribeMessagesRef.current();
+      }
+    };
+  }, [sessionId, isOpen, soundEnabled]);
+
+  // Subscribe to queue position
+  useEffect(() => {
+    if (!sessionId || chatSession?.status !== "waiting") return;
+
+    const queueRef = collection(db, "chatQueue");
+    const queueQuery = query(queueRef, orderBy("createdAt", "asc"));
+
+    unsubscribeQueueRef.current = onSnapshot(queueQuery, (snapshot) => {
+      let position = 0;
+      snapshot.forEach((doc) => {
+        position++;
+        if (doc.data().sessionId === sessionId) {
+          setQueuePosition(position);
+          setEstimatedWaitTime(position * 2); // 2 minutes per position
+        }
+      });
+    });
+
+    return () => {
+      if (unsubscribeQueueRef.current) {
+        unsubscribeQueueRef.current();
+      }
+    };
+  }, [sessionId, chatSession?.status]);
+
+  // Subscribe to agent typing indicator
+  useEffect(() => {
+    if (!sessionId || !chatSession?.agentId) return;
+
+    const agentRef = doc(db, "supportAgents", chatSession.agentId);
+
+    const unsubscribe = onSnapshot(agentRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const agentData = snapshot.data();
+        setAgentTyping(agentData.typing?.includes(sessionId) || false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [sessionId, chatSession?.agentId]);
+
+  // Send message
+  const sendMessage = useCallback(async () => {
+    if (!currentMessage.trim() || !sessionId) return;
+
+    const messageText = currentMessage.trim();
+    setCurrentMessage("");
+
+    try {
+      // Add message to Firestore
+      await addDoc(collection(db, "chatSessions", sessionId, "messages"), {
+        text: messageText,
+        senderId: userId,
+        senderName: userName || "Customer",
+        senderType: "customer",
+        timestamp: serverTimestamp(),
+        status: "sent",
+        attachments: attachments.map((a) => ({
+          url: a.url,
+          name: a.name,
+          type: a.type,
+          size: a.size,
+        })),
+      });
+
+      // Update session last message time
+      await updateDoc(doc(db, "chatSessions", sessionId), {
+        lastMessageAt: serverTimestamp(),
+        "unreadCount.agent": (chatSession?.unreadCount?.agent || 0) + 1,
+      });
+
+      // Clear attachments after sending
+      setAttachments([]);
+
+      // Stop typing indicator
+      stopTyping();
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  }, [currentMessage, sessionId, userId, userName, attachments, chatSession]);
+
+  // Handle typing indicator
+  const handleTyping = useCallback(async () => {
+    if (!sessionId) return;
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set typing status
+    if (!isTyping) {
+      setIsTyping(true);
+      await updateDoc(doc(db, "chatSessions", sessionId), {
+        customerTyping: true,
+      });
+    }
+
+    // Set timeout to stop typing
+    typingTimeoutRef.current = setTimeout(() => {
+      stopTyping();
+    }, TYPING_TIMEOUT);
+  }, [sessionId, isTyping]);
+
+  // Stop typing indicator
+  const stopTyping = useCallback(async () => {
+    if (!sessionId || !isTyping) return;
+
+    setIsTyping(false);
+    await updateDoc(doc(db, "chatSessions", sessionId), {
+      customerTyping: false,
+    });
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+  }, [sessionId, isTyping]);
+
+  // Mark messages as read
+  const markMessagesAsRead = useCallback(async () => {
+    if (!sessionId) return;
+
+    try {
+      const batch = writeBatch(db);
+
+      // Update unread count
+      batch.update(doc(db, "chatSessions", sessionId), {
+        "unreadCount.customer": 0,
+      });
+
+      await batch.commit();
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  }, [sessionId]);
+
+  // Handle file upload
+  const handleFileUpload = useCallback(
+    async (event) => {
+      const files = Array.from(event.target.files);
+
+      for (const file of files) {
+        if (file.size > MAX_FILE_SIZE) {
+          alert(`File ${file.name} exceeds 10MB limit`);
+          continue;
+        }
+
+        setIsUploading(true);
+
+        try {
+          // Upload to Firebase Storage
+          const storageRef = ref(
+            storage,
+            `chat-attachments/${sessionId}/${Date.now()}_${file.name}`
+          );
+          const snapshot = await uploadBytes(storageRef, file);
+          const downloadURL = await getDownloadURL(snapshot.ref);
+
+          setAttachments((prev) => [
+            ...prev,
+            {
+              id: Date.now(),
+              url: downloadURL,
+              name: file.name,
+              type: file.type,
+              size: file.size,
+            },
+          ]);
+        } catch (error) {
+          console.error("Error uploading file:", error);
+          alert("Failed to upload file");
+        } finally {
+          setIsUploading(false);
+        }
+      }
+    },
+    [sessionId]
+  );
+
+  // Start voice recording
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
       };
-      setMessages([welcomeMessage]);
-    }, 2000);
-  }, [supportAgents]); // Now supportAgents is stable
+
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
+
+        // Upload audio
+        setIsUploading(true);
+        try {
+          const storageRef = ref(
+            storage,
+            `chat-audio/${sessionId}/${Date.now()}_audio.webm`
+          );
+          const snapshot = await uploadBytes(storageRef, audioBlob);
+          const downloadURL = await getDownloadURL(snapshot.ref);
+
+          // Send as message
+          await addDoc(collection(db, "chatSessions", sessionId, "messages"), {
+            text: "🎤 Voice message",
+            senderId: userId,
+            senderName: userName || "Customer",
+            senderType: "customer",
+            timestamp: serverTimestamp(),
+            status: "sent",
+            attachments: [
+              {
+                url: downloadURL,
+                name: "Voice message",
+                type: "audio/webm",
+              },
+            ],
+          });
+        } catch (error) {
+          console.error("Error uploading audio:", error);
+        } finally {
+          setIsUploading(false);
+        }
+
+        // Clean up
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      alert("Microphone access denied");
+    }
+  }, [sessionId, userId, userName]);
+
+  // Stop voice recording
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  }, [isRecording]);
+
+  // Handle emoji selection
+  const handleEmojiSelect = useCallback((emoji) => {
+    setCurrentMessage((prev) => prev + emoji);
+    setShowEmoji(false);
+    inputRef.current?.focus();
+  }, []);
+
+  // Submit rating and feedback
+  const submitRating = useCallback(async () => {
+    if (!sessionId || rating === 0) return;
+
+    try {
+      await updateDoc(doc(db, "chatSessions", sessionId), {
+        rating,
+        feedback: feedback.trim(),
+        status: "closed",
+        closedAt: serverTimestamp(),
+      });
+
+      // Update agent rating
+      if (chatSession?.agentId) {
+        const agentRef = doc(db, "supportAgents", chatSession.agentId);
+        const agentDoc = await getDoc(agentRef);
+
+        if (agentDoc.exists()) {
+          const agentData = agentDoc.data();
+          const currentAvg = agentData.rating?.average || 0;
+          const currentCount = agentData.rating?.count || 0;
+          const newAvg =
+            (currentAvg * currentCount + rating) / (currentCount + 1);
+
+          await updateDoc(agentRef, {
+            "rating.average": newAvg,
+            "rating.count": currentCount + 1,
+          });
+        }
+      }
+
+      setShowRating(false);
+      alert("Thank you for your feedback!");
+      closeChat();
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+    }
+  }, [sessionId, rating, feedback, chatSession]);
+
+  // Close chat
+  const closeChat = useCallback(async () => {
+    if (sessionId && chatSession?.status === "active") {
+      // Show rating modal
+      setShowRating(true);
+    } else {
+      // Clean up
+      if (unsubscribeMessagesRef.current) unsubscribeMessagesRef.current();
+      if (unsubscribeSessionRef.current) unsubscribeSessionRef.current();
+      if (unsubscribeQueueRef.current) unsubscribeQueueRef.current();
+
+      setIsOpen(false);
+      setMessages([]);
+      setSessionId(null);
+      setChatSession(null);
+      setSupportAgent(null);
+    }
+  }, [sessionId, chatSession]);
+
+  // Play notification sound
+  const playNotificationSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current
+        .play()
+        .catch((e) => console.log("Audio play failed:", e));
+    }
+  }, [soundEnabled]);
+
+  // Auto-scroll to bottom
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  // Format timestamp
+  const formatTime = useCallback((timestamp) => {
+    if (!timestamp) return "";
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }, []);
 
   // Initialize chat when opened
   useEffect(() => {
-    if (isOpen && !chatSession && isAvailable) {
+    if (isOpen && !sessionId) {
       initializeChat();
     }
-  }, [isOpen, isAvailable, chatSession, initializeChat]);
+  }, [isOpen, sessionId, initializeChat]);
 
-  const sendMessage = () => {
-    if (!currentMessage.trim() || connectionStatus !== "connected") return;
+  // Mark messages as read when chat is opened
+  useEffect(() => {
+    if (isOpen && unreadCount > 0) {
+      markMessagesAsRead();
+    }
+  }, [isOpen, unreadCount, markMessagesAsRead]);
 
-    const userMessage = {
-      id: Date.now(),
-      text: currentMessage.trim(),
-      sender: "user",
-      timestamp: new Date(),
-      status: "sending",
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (unsubscribeMessagesRef.current) unsubscribeMessagesRef.current();
+      if (unsubscribeSessionRef.current) unsubscribeSessionRef.current();
+      if (unsubscribeQueueRef.current) unsubscribeQueueRef.current();
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-
-    setMessages((prev) => [...prev, userMessage]);
-    const messageToRespond = currentMessage.trim();
-    setCurrentMessage("");
-
-    // Simulate message delivery
-    setTimeout(() => {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === userMessage.id ? { ...msg, status: "delivered" } : msg
-        )
-      );
-    }, 500);
-
-    // Simulate agent typing and response
-    setTimeout(() => {
-      setIsTyping(true);
-    }, 1000);
-
-    setTimeout(() => {
-      setIsTyping(false);
-      const agentResponse = generateAgentResponse(messageToRespond);
-      const responseMessage = {
-        id: Date.now() + 1,
-        text: agentResponse,
-        sender: "agent",
-        timestamp: new Date(),
-        status: "delivered",
-      };
-      setMessages((prev) => [...prev, responseMessage]);
-    }, 3000);
-  };
-
-  const generateAgentResponse = (userMessage) => {
-    const message = userMessage.toLowerCase();
-
-    if (message.includes("refund")) {
-      return "I can help you with refund requests. Refunds are available if no matches are found within 30 days or if a traveler cancels their flight. Can you provide your booking reference number?";
-    }
-
-    if (message.includes("match") || message.includes("traveler")) {
-      return "For matching issues, I'll need to check your account details. Are you having trouble finding travelers or is there an issue with a specific match?";
-    }
-
-    if (message.includes("payment") || message.includes("token")) {
-      return "I can assist with payment and token-related questions. Are you trying to purchase tokens or having issues with a payment?";
-    }
-
-    if (message.includes("account") || message.includes("login")) {
-      return "I can help with account issues. Are you having trouble logging in or need to update your account information?";
-    }
-
-    if (message.includes("verification")) {
-      return "For verification issues, I can check the status of your documents. Verification typically takes 24-48 hours. What specific verification issue are you experiencing?";
-    }
-
-    if (message.includes("hello") || message.includes("hi")) {
-      return "Hello! Thanks for reaching out. What can I help you with today?";
-    }
-
-    // Default response
-    return "Thank you for your message. Let me look into this for you. Can you provide more details about the specific issue you're experiencing?";
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  const formatTime = (date) => {
-    return date.toLocaleTimeString("en-AU", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  const closeChat = () => {
-    setMessages([]);
-    setSupportAgent(null);
-    setChatSession(null);
-    setConnectionStatus("disconnected");
-    setIsTyping(false);
-    onToggle();
-  };
-
-  if (!isOpen) return null;
+  }, []);
 
   return (
-    <div
-      className={`fixed bottom-4 right-4 z-50 transition-all duration-300 ${
-        isMinimized ? "w-80 h-14" : "w-80 h-96"
-      }`}
-    >
-      <div className="bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col h-full">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-4 rounded-t-lg flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              {supportAgent ? (
-                <Image
-                  src={supportAgent.avatar}
-                  alt={supportAgent.name}
-                  width={32}
-                  height={32}
-                  className="rounded-full"
-                />
-              ) : (
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                  <MessageCircle className="w-4 h-4" />
-                </div>
-              )}
-              {connectionStatus === "connected" && (
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
-              )}
+    <>
+      {/* Chat Toggle Button */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className={`fixed bottom-4 right-4 w-14 h-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-40 ${
+          unreadCount > 0 ? "animate-pulse" : ""
+        } bg-gradient-to-r from-blue-600 to-green-600 text-white`}
+        style={{ display: isOpen ? "none" : "flex" }}
+      >
+        <div className="relative flex items-center justify-center w-full h-full">
+          <MessageCircle className="w-6 h-6" />
+          {unreadCount > 0 && (
+            <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+              <span className="text-xs text-white font-bold">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold">
-                {connectionStatus === "connected"
-                  ? supportAgent?.name
-                  : "Nasosend Support"}
-              </h3>
-              <p className="text-xs text-blue-100">
-                {connectionStatus === "connecting"
-                  ? "Connecting..."
-                  : connectionStatus === "connected"
-                  ? "Online"
-                  : "Live Chat"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setIsMinimized(!isMinimized)}
-              className="p-1 hover:bg-white/20 rounded transition-colors"
-            >
-              <Minimize2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={closeChat}
-              className="p-1 hover:bg-white/20 rounded transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          )}
         </div>
+      </button>
 
-        {!isMinimized && (
-          <>
-            {/* Connection Status */}
-            {!isAvailable && (
-              <div className="bg-red-50 border-b border-red-200 p-3">
-                <div className="flex items-center text-red-800">
-                  <AlertCircle className="w-4 h-4 mr-2" />
-                  <span className="text-sm">
-                    Chat is currently offline. Available 9 AM - 10 PM AEDT
-                  </span>
+      {/* Chat Window */}
+      {isOpen && (
+        <div
+          className={`fixed bottom-4 right-4 z-50 transition-all duration-300 ${
+            isMinimized ? "w-80 h-16" : "w-96 h-[600px]"
+          }`}
+        >
+          <div className="bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col h-full">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-4 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    {supportAgent ? (
+                      <Image
+                        src={
+                          supportAgent.avatar ||
+                          `https://ui-avatars.com/api/?name=${supportAgent.name}&background=ffffff&color=000000`
+                        }
+                        alt={supportAgent.name}
+                        width={40}
+                        height={40}
+                        className="rounded-full border-2 border-white"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                        <MessageCircle className="w-5 h-5" />
+                      </div>
+                    )}
+                    {chatSession?.status === "active" && (
+                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold">
+                      {supportAgent ? supportAgent.name : "Nasosend Support"}
+                    </h3>
+                    <p className="text-xs text-blue-100">
+                      {chatSession?.status === "waiting"
+                        ? `Queue position: ${queuePosition} • Wait time: ~${estimatedWaitTime} min`
+                        : chatSession?.status === "active"
+                        ? "Online - We typically reply in seconds"
+                        : "Connecting..."}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {connectionStatus === "connecting" && (
-              <div className="bg-yellow-50 border-b border-yellow-200 p-3">
-                <div className="flex items-center text-yellow-800">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600 mr-2"></div>
-                  <span className="text-sm">
-                    Connecting you with a support agent...
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              {connectionStatus === "disconnected" && isAvailable && (
-                <div className="text-center py-8">
-                  <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 text-sm">
-                    Start a conversation with our support team
-                  </p>
+                <div className="flex items-center space-x-2">
                   <button
-                    onClick={initializeChat}
-                    className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                    onClick={() => setSoundEnabled(!soundEnabled)}
+                    className="p-1 hover:bg-white/20 rounded transition-colors"
                   >
-                    Start Chat
+                    {soundEnabled ? (
+                      <Volume2 className="w-4 h-4" />
+                    ) : (
+                      <VolumeX className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setIsMinimized(!isMinimized)}
+                    className="p-1 hover:bg-white/20 rounded transition-colors"
+                  >
+                    <Minimize2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={closeChat}
+                    className="p-1 hover:bg-white/20 rounded transition-colors"
+                  >
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
-              )}
+              </div>
+            </div>
 
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    message.sender === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`flex items-end space-x-2 max-w-xs ${
-                      message.sender === "user"
-                        ? "flex-row-reverse space-x-reverse"
-                        : ""
-                    }`}
-                  >
-                    <div className="w-6 h-6 rounded-full flex-shrink-0">
-                      {message.sender === "agent" ? (
-                        supportAgent ? (
-                          <Image
-                            src={supportAgent.avatar}
-                            alt={supportAgent.name}
-                            width={24}
-                            height={24}
-                            className="rounded-full"
-                          />
-                        ) : (
-                          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                            <Bot className="w-3 h-3 text-white" />
-                          </div>
-                        )
+            {!isMinimized && (
+              <>
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        message.senderType === "customer"
+                          ? "justify-end"
+                          : message.senderType === "system"
+                          ? "justify-center"
+                          : "justify-start"
+                      }`}
+                    >
+                      {message.senderType === "system" ? (
+                        <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs">
+                          {message.text}
+                        </div>
                       ) : (
-                        <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center">
-                          <User className="w-3 h-3 text-white" />
+                        <div
+                          className={`flex items-end space-x-2 max-w-[70%] ${
+                            message.senderType === "customer"
+                              ? "flex-row-reverse space-x-reverse"
+                              : ""
+                          }`}
+                        >
+                          {message.senderType === "agent" && (
+                            <Image
+                              src={
+                                supportAgent?.avatar ||
+                                `https://ui-avatars.com/api/?name=${message.senderName}&background=3b82f6&color=ffffff`
+                              }
+                              alt={message.senderName}
+                              width={32}
+                              height={32}
+                              className="rounded-full"
+                            />
+                          )}
+                          <div
+                            className={`px-4 py-2 rounded-lg ${
+                              message.senderType === "customer"
+                                ? "bg-blue-600 text-white"
+                                : "bg-white text-gray-900 border"
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap break-words">
+                              {message.text}
+                            </p>
+
+                            {/* Attachments */}
+                            {message.attachments?.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {message.attachments.map((attachment, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={attachment.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`flex items-center space-x-2 text-xs ${
+                                      message.senderType === "customer"
+                                        ? "text-blue-100 hover:text-white"
+                                        : "text-blue-600 hover:text-blue-800"
+                                    }`}
+                                  >
+                                    {attachment.type?.startsWith("image/") ? (
+                                      <ImageIcon className="w-4 h-4" />
+                                    ) : attachment.type?.startsWith(
+                                        "audio/"
+                                      ) ? (
+                                      <Mic className="w-4 h-4" />
+                                    ) : (
+                                      <FileText className="w-4 h-4" />
+                                    )}
+                                    <span className="truncate underline">
+                                      {attachment.name}
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between mt-1">
+                              <span
+                                className={`text-xs ${
+                                  message.senderType === "customer"
+                                    ? "text-blue-100"
+                                    : "text-gray-500"
+                                }`}
+                              >
+                                {formatTime(message.timestamp)}
+                              </span>
+                              {message.senderType === "customer" && (
+                                <span className="ml-2">
+                                  {message.status === "sent" ? (
+                                    <Check className="w-3 h-3" />
+                                  ) : message.status === "delivered" ? (
+                                    <CheckCheck className="w-3 h-3" />
+                                  ) : message.status === "read" ? (
+                                    <CheckCheck className="w-3 h-3 text-blue-200" />
+                                  ) : (
+                                    <Clock className="w-3 h-3" />
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
-                    <div
-                      className={`px-3 py-2 rounded-lg ${
-                        message.sender === "user"
-                          ? "bg-blue-600 text-white"
-                          : "bg-white text-gray-900 border"
-                      }`}
-                    >
-                      <p className="text-sm">{message.text}</p>
-                      <div
-                        className={`flex items-center justify-between mt-1 ${
-                          message.sender === "user"
-                            ? "text-blue-100"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        <span className="text-xs">
-                          {formatTime(message.timestamp)}
-                        </span>
-                        {message.sender === "user" && (
-                          <div className="ml-2">
-                            {message.status === "sending" && (
-                              <Clock className="w-3 h-3" />
-                            )}
-                            {message.status === "delivered" && (
-                              <CheckCheck className="w-3 h-3" />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  ))}
 
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="flex items-end space-x-2 max-w-xs">
-                    <div className="w-6 h-6 rounded-full">
-                      {supportAgent && (
+                  {/* Typing Indicator */}
+                  {agentTyping && (
+                    <div className="flex justify-start">
+                      <div className="flex items-end space-x-2 max-w-[70%]">
                         <Image
-                          src={supportAgent.avatar}
-                          alt={supportAgent.name}
-                          width={24}
-                          height={24}
+                          src={
+                            supportAgent?.avatar ||
+                            `https://ui-avatars.com/api/?name=Agent&background=3b82f6&color=ffffff`
+                          }
+                          alt="Agent"
+                          width={32}
+                          height={32}
                           className="rounded-full"
                         />
-                      )}
-                    </div>
-                    <div className="px-3 py-2 bg-white border rounded-lg">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        ></div>
-                        <div
-                          className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
+                        <div className="px-4 py-2 bg-white border rounded-lg">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: "0.1s" }}
+                            ></div>
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: "0.2s" }}
+                            ></div>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  )}
+
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input Area */}
+                <div className="border-t p-4 bg-white">
+                  {/* Attachments Preview */}
+                  {attachments.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {attachments.map((attachment) => (
+                        <div
+                          key={attachment.id}
+                          className="flex items-center space-x-2 bg-gray-100 rounded-lg p-2 text-sm"
+                        >
+                          <Paperclip className="w-4 h-4 text-gray-500" />
+                          <span className="truncate max-w-[150px]">
+                            {attachment.name}
+                          </span>
+                          <button
+                            onClick={() =>
+                              setAttachments((prev) =>
+                                prev.filter((a) => a.id !== attachment.id)
+                              )
+                            }
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Emoji Picker */}
+                  {showEmoji && (
+                    <div className="absolute bottom-20 right-4 bg-white border rounded-lg shadow-lg p-2">
+                      <div className="grid grid-cols-5 gap-2">
+                        {emojis.map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => handleEmojiSelect(emoji)}
+                            className="text-2xl hover:bg-gray-100 rounded p-1"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-end space-x-2">
+                    <div className="flex-1">
+                      <textarea
+                        ref={inputRef}
+                        value={currentMessage}
+                        onChange={(e) => {
+                          setCurrentMessage(e.target.value);
+                          handleTyping();
+                        }}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            sendMessage();
+                          }
+                        }}
+                        placeholder="Type your message..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        rows={1}
+                        style={{ minHeight: "38px", maxHeight: "100px" }}
+                        maxLength={MAX_MESSAGE_LENGTH}
+                        disabled={chatSession?.status === "closed"}
+                      />
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center space-x-1">
+                      {/* File Upload */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        accept="image/*,application/pdf,.doc,.docx"
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        {isUploading ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Paperclip className="w-4 h-4" />
+                        )}
+                      </button>
+
+                      {/* Voice Recording */}
+                      <button
+                        onClick={isRecording ? stopRecording : startRecording}
+                        className={`p-2 transition-colors ${
+                          isRecording
+                            ? "text-red-500 hover:text-red-700"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        {isRecording ? (
+                          <StopCircle className="w-4 h-4" />
+                        ) : (
+                          <Mic className="w-4 h-4" />
+                        )}
+                      </button>
+
+                      {/* Emoji */}
+                      <button
+                        onClick={() => setShowEmoji(!showEmoji)}
+                        className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </button>
+
+                      {/* Send */}
+                      <button
+                        onClick={sendMessage}
+                        disabled={
+                          (!currentMessage.trim() &&
+                            attachments.length === 0) ||
+                          chatSession?.status === "closed"
+                        }
+                        className={`p-2 rounded-lg transition-colors ${
+                          currentMessage.trim() || attachments.length > 0
+                            ? "bg-blue-600 text-white hover:bg-blue-700"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                    <span>Press Enter to send, Shift+Enter for new line</span>
+                    {currentMessage.length > 0 && (
+                      <span
+                        className={
+                          currentMessage.length > MAX_MESSAGE_LENGTH * 0.9
+                            ? "text-red-500"
+                            : ""
+                        }
+                      >
+                        {currentMessage.length}/{MAX_MESSAGE_LENGTH}
+                      </span>
+                    )}
                   </div>
                 </div>
-              )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
-              <div ref={messagesEndRef} />
+      {/* Rating Modal */}
+      {showRating && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold mb-4">Rate your experience</h3>
+
+            <div className="flex justify-center space-x-2 mb-4">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setRating(star)}
+                  className="text-3xl transition-colors"
+                >
+                  <Star
+                    className={`w-8 h-8 ${
+                      star <= rating
+                        ? "text-yellow-400 fill-yellow-400"
+                        : "text-gray-300"
+                    }`}
+                  />
+                </button>
+              ))}
             </div>
 
-            {/* Input Area */}
-            {connectionStatus === "connected" && (
-              <div className="border-t p-4">
-                <div className="flex items-end space-x-2">
-                  <div className="flex-1">
-                    <textarea
-                      ref={inputRef}
-                      value={currentMessage}
-                      onChange={(e) => setCurrentMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Type your message..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      rows={1}
-                      style={{ minHeight: "38px", maxHeight: "100px" }}
-                    />
-                  </div>
-                  <button
-                    onClick={sendMessage}
-                    disabled={!currentMessage.trim()}
-                    className={`p-2 rounded-lg transition-colors ${
-                      currentMessage.trim()
-                        ? "bg-blue-600 text-white hover:bg-blue-700"
-                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    }`}
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </div>
+            <textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              placeholder="Share your feedback (optional)"
+              className="w-full p-3 border rounded-lg mb-4"
+              rows={3}
+            />
 
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center space-x-2 text-xs text-gray-500">
-                    <span>Press Enter to send</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                      <Paperclip className="w-4 h-4" />
-                    </button>
-                    <button className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                      <Smile className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Offline Message */}
-            {!isAvailable && (
-              <div className="border-t p-4 bg-gray-50">
-                <p className="text-sm text-gray-600 text-center">
-                  Chat is currently offline. Please email us at{" "}
-                  <a
-                    href="mailto:support@nasosend.com"
-                    className="text-blue-600 hover:underline"
-                  >
-                    support@nasosend.com
-                  </a>
-                </p>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Chat Toggle Button Component
-export const ChatToggleButton = ({
-  onClick,
-  isAvailable,
-  hasUnreadMessages,
-}) => {
-  return (
-    <button
-      onClick={onClick}
-      className={`fixed bottom-4 right-4 w-14 h-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-40 ${
-        isAvailable
-          ? "bg-gradient-to-r from-blue-600 to-green-600 text-white"
-          : "bg-gray-600 text-gray-300"
-      }`}
-    >
-      <div className="relative flex items-center justify-center w-full h-full">
-        <MessageCircle className="w-6 h-6" />
-        {isAvailable && (
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
-        )}
-        {hasUnreadMessages && (
-          <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-            <span className="text-xs text-white font-bold">1</span>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowRating(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Skip
+              </button>
+              <button
+                onClick={submitRating}
+                disabled={rating === 0}
+                className={`flex-1 py-2 rounded-lg text-white ${
+                  rating > 0
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-gray-300 cursor-not-allowed"
+                }`}
+              >
+                Submit
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-    </button>
+        </div>
+      )}
+    </>
   );
 };
 
