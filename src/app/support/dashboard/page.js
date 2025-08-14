@@ -57,6 +57,9 @@ export default function SupportDashboard() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [loadingData, setLoadingData] = useState(true);
   const [agentProfile, setAgentProfile] = useState(null);
+  const [tripToReject, setTripToReject] = useState(null);
+  const [showTripRejectModal, setShowTripRejectModal] = useState(false);
+  const [tripRejectionReason, setTripRejectionReason] = useState("");
   const [showNotification, setShowNotification] = useState({
     isVisible: false,
     message: "",
@@ -220,10 +223,46 @@ export default function SupportDashboard() {
     }
     try {
       const userRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.data();
+
       await updateDoc(userRef, {
         verified: true,
         verificationPending: false,
         updatedAt: serverTimestamp(),
+      });
+
+      // Send notification to user
+      const notificationPayload = {
+        id: new Date().getTime(),
+        type: "success",
+        title: "Identity Verification Approved",
+        message:
+          "Your identity has been successfully verified. You can now access all features.",
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      await updateDoc(userRef, {
+        notifications: arrayUnion(notificationPayload),
+      });
+
+      // Send email to user
+      const emailPayload = {
+        to: userData.email,
+        subject: "Your Nasosend Identity Has Been Verified!",
+        text: `Hello ${
+          userData.verification?.fullName || "User"
+        },\n\nYour identity verification has been successfully approved. You can now post trips and send requests on Nasosend.\n\nBest regards,\nTeam Nasosend`,
+        html: `<p>Hello ${
+          userData.verification?.fullName || "User"
+        },</p><p>Your identity verification has been successfully approved.</p><p>You can now post trips and send requests on our platform.</p><p>Best regards,<br/>Team Nasosend</p>`,
+      };
+
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
       });
 
       fetchUsers();
@@ -261,6 +300,9 @@ export default function SupportDashboard() {
 
     try {
       const userRef = doc(db, "users", userToReject.id);
+      const userData = userToReject;
+
+      // Update user verification status
       await updateDoc(userRef, {
         verified: false,
         verificationPending: false,
@@ -269,13 +311,45 @@ export default function SupportDashboard() {
         rejectionReason: rejectionReason,
       });
 
+      // Send notification to user
+      const notificationPayload = {
+        id: new Date().getTime(),
+        type: "warning",
+        title: "Identity Verification Rejected",
+        message: `Your identity verification was rejected. Reason: ${rejectionReason}`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      await updateDoc(userRef, {
+        notifications: arrayUnion(notificationPayload),
+      });
+
+      // Send email to user
+      const emailPayload = {
+        to: userData.email,
+        subject: "Your Nasosend Identity Verification Was Rejected",
+        text: `Hello ${
+          userData.verification?.fullName || "User"
+        },\n\nYour recent identity verification request was rejected.\n\nReason: ${rejectionReason}\n\nPlease review the requirements and submit your documents again. If you have questions, contact our support team.\n\nBest regards,\nTeam Nasosend`,
+        html: `<p>Hello ${
+          userData.verification?.fullName || "User"
+        },</p><p>Your recent identity verification request was rejected.</p><p><strong>Reason:</strong> ${rejectionReason}</p><p>Please review the requirements and submit your documents again. If you have questions, contact our support team.</p><p>Best regards,<br/>Team Nasosend</p>`,
+      };
+
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
+      });
+
       fetchUsers();
       setShowRejectReasonModal(false);
       setUserToReject(null);
       setRejectionReason("");
       setShowNotification({
         isVisible: true,
-        message: "User verification rejected.",
+        message: "User verification rejected and user notified.",
         type: "success",
       });
     } catch (error) {
@@ -283,6 +357,248 @@ export default function SupportDashboard() {
       setShowNotification({
         isVisible: true,
         message: "Failed to reject user verification.",
+        type: "error",
+      });
+    }
+  };
+
+  // Handle trip approval
+  const handleApproveTrip = async (tripId) => {
+    if (!window.confirm("Are you sure you want to approve this trip?")) {
+      return;
+    }
+    try {
+      const tripRef = doc(db, "trips", tripId);
+      const tripDoc = await getDoc(tripRef);
+      if (!tripDoc.exists()) {
+        throw new Error("Trip not found");
+      }
+      const tripData = tripDoc.data();
+
+      await updateDoc(tripRef, {
+        status: "active",
+        approvedAt: serverTimestamp(),
+        approvedBy: user.uid,
+      });
+
+      // Send notification to traveler
+      const travelerRef = doc(db, "users", tripData.travelerId);
+      const notificationPayload = {
+        id: new Date().getTime(),
+        type: "success",
+        title: "Your Trip Has Been Approved",
+        message: `Your trip from ${tripData.departureCity} to ${tripData.arrivalCity} has been approved and is now live.`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      await updateDoc(travelerRef, {
+        notifications: arrayUnion(notificationPayload),
+      });
+
+      // Send email to traveler
+      const emailPayload = {
+        to: tripData.travelerEmail,
+        subject: "Your Nasosend Trip is Live!",
+        text: `Hello ${tripData.travelerName},\n\nGreat news! Your trip from ${
+          tripData.departureCity
+        } to ${tripData.arrivalCity} on ${new Date(
+          tripData.departureDate
+        ).toLocaleDateString()} has been approved.\n\nSenders can now see and request your trip. You'll be notified when you receive matching requests.\n\nTrip Details:\n- Route: ${
+          tripData.departureCity
+        } to ${tripData.arrivalCity}\n- Date: ${new Date(
+          tripData.departureDate
+        ).toLocaleDateString()}\n- Available Weight: ${
+          tripData.availableWeight
+        } kg\n\nThank you for using Nasosend!\n\nBest regards,\nTeam Nasosend`,
+        html: `<p>Hello ${
+          tripData.travelerName
+        },</p><p>Great news! Your trip from <strong>${
+          tripData.departureCity
+        }</strong> to <strong>${tripData.arrivalCity}</strong> on ${new Date(
+          tripData.departureDate
+        ).toLocaleDateString()} has been approved.</p><p>Senders can now see and request your trip. You'll be notified when you receive matching requests.</p><h3>Trip Details:</h3><ul><li>Route: ${
+          tripData.departureCity
+        } to ${tripData.arrivalCity}</li><li>Date: ${new Date(
+          tripData.departureDate
+        ).toLocaleDateString()}</li><li>Available Weight: ${
+          tripData.availableWeight
+        } kg</li></ul><p>Thank you for using Nasosend!</p><p>Best regards,<br/>Team Nasosend</p>`,
+      };
+
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
+      });
+
+      fetchTrips();
+      setShowNotification({
+        isVisible: true,
+        message: "Trip approved and traveler notified!",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error approving trip:", error);
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to approve trip. Please try again.",
+        type: "error",
+      });
+    }
+  };
+
+  // Handle trip rejection
+  const handleRejectTrip = (trip) => {
+    setTripToReject(trip);
+    setShowTripRejectModal(true);
+  };
+
+  // Handle trip rejection with reason
+  const handleRejectTripWithReason = async () => {
+    if (!tripToReject || !tripRejectionReason.trim()) {
+      setShowNotification({
+        isVisible: true,
+        message: "Please provide a rejection reason.",
+        type: "warning",
+      });
+      return;
+    }
+
+    try {
+      const tripRef = doc(db, "trips", tripToReject.id);
+      const tripData = tripToReject;
+
+      // Update trip status
+      await updateDoc(tripRef, {
+        status: "rejected",
+        rejectedAt: serverTimestamp(),
+        rejectedBy: user.uid,
+        rejectionReason: tripRejectionReason,
+      });
+
+      // Send notification to traveler
+      const travelerRef = doc(db, "users", tripData.travelerId);
+      const notificationPayload = {
+        id: new Date().getTime(),
+        type: "warning",
+        title: "Trip Verification Rejected",
+        message: `Your trip from ${tripData.departureCity} to ${tripData.arrivalCity} was rejected. Reason: ${tripRejectionReason}`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      await updateDoc(travelerRef, {
+        notifications: arrayUnion(notificationPayload),
+      });
+
+      // Send email to traveler
+      const emailPayload = {
+        to: tripData.travelerEmail,
+        subject: "Your Nasosend Trip Was Not Approved",
+        text: `Hello ${tripData.travelerName},\n\nWe regret to inform you that your trip from ${tripData.departureCity} to ${tripData.arrivalCity} was not approved.\n\nReason: ${tripRejectionReason}\n\nPlease review the requirements and submit a new trip if you believe this was an error. For questions, contact our support team.\n\nBest regards,\nTeam Nasosend`,
+        html: `<p>Hello ${tripData.travelerName},</p><p>We regret to inform you that your trip from <strong>${tripData.departureCity}</strong> to <strong>${tripData.arrivalCity}</strong> was not approved.</p><p><strong>Reason:</strong> ${tripRejectionReason}</p><p>Please review the requirements and submit a new trip if you believe this was an error. For questions, contact our support team.</p><p>Best regards,<br/>Team Nasosend</p>`,
+      };
+
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailPayload),
+      });
+
+      fetchTrips();
+      setShowTripRejectModal(false);
+      setTripToReject(null);
+      setTripRejectionReason("");
+      setShowNotification({
+        isVisible: true,
+        message: "Trip rejected and traveler notified.",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error rejecting trip:", error);
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to reject trip.",
+        type: "error",
+      });
+    }
+  };
+
+  // Handle request approval
+  const handleApproveRequest = async (requestId) => {
+    if (!window.confirm("Are you sure you want to approve this request?")) {
+      return;
+    }
+    try {
+      const requestRef = doc(db, "shipmentRequests", requestId);
+      const requestDoc = await getDoc(requestRef);
+      if (!requestDoc.exists()) {
+        throw new Error("Request not found");
+      }
+      const requestData = requestDoc.data();
+
+      await updateDoc(requestRef, {
+        status: "approved",
+        approvedAt: serverTimestamp(),
+        approvedBy: user.uid,
+      });
+
+      // Send notifications to both sender and traveler
+      const senderRef = doc(db, "users", requestData.senderId);
+      const travelerRef = doc(db, "users", requestData.travelerId);
+
+      const senderNotification = {
+        id: new Date().getTime(),
+        type: "success",
+        title: "Shipment Request Approved",
+        message: `Your shipment request for "${requestData.itemDescription}" has been approved.`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      const travelerNotification = {
+        id: new Date().getTime() + 1,
+        type: "info",
+        title: "New Shipment Request",
+        message: `You have a new approved shipment request for "${requestData.itemDescription}" from ${requestData.senderName}.`,
+        read: false,
+        timestamp: new Date().toISOString(),
+      };
+
+      await updateDoc(senderRef, {
+        notifications: arrayUnion(senderNotification),
+      });
+
+      await updateDoc(travelerRef, {
+        notifications: arrayUnion(travelerNotification),
+      });
+
+      // Send emails
+      const senderEmail = {
+        to: requestData.senderEmail,
+        subject: "Your Shipment Request Has Been Approved!",
+        text: `Hello ${requestData.senderName},\n\nYour shipment request for "${requestData.itemDescription}" has been approved. The traveler will contact you soon to arrange pickup and delivery.\n\nBest regards,\nTeam Nasosend`,
+        html: `<p>Hello ${requestData.senderName},</p><p>Your shipment request for "<strong>${requestData.itemDescription}</strong>" has been approved. The traveler will contact you soon to arrange pickup and delivery.</p><p>Best regards,<br/>Team Nasosend</p>`,
+      };
+
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(senderEmail),
+      });
+
+      fetchRequests();
+      setShowNotification({
+        isVisible: true,
+        message: "Request approved and parties notified!",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error approving request:", error);
+      setShowNotification({
+        isVisible: true,
+        message: "Failed to approve request.",
         type: "error",
       });
     }
@@ -462,44 +778,129 @@ export default function SupportDashboard() {
         {activeTab === "trips" && (
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h2 className="text-2xl font-semibold mb-4">
-              All Trips ({trips.length})
+              Pending Trip Verifications (
+              {trips.filter((t) => t.status === "pending_verification").length})
+            </h2>
+            <div className="space-y-4 mb-8">
+              {trips.filter((t) => t.status === "pending_verification").length >
+              0 ? (
+                trips
+                  .filter((t) => t.status === "pending_verification")
+                  .map((trip) => (
+                    <div
+                      key={trip.id}
+                      className="flex items-center justify-between p-4 border border-yellow-300 bg-yellow-50 rounded-lg"
+                    >
+                      <div>
+                        <p className="font-semibold flex items-center">
+                          <Plane size={16} className="mr-2 text-yellow-600" />
+                          {trip.departureCity} to {trip.arrivalCity}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Traveler: {trip.travelerName}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Date:{" "}
+                          {trip.departureDate
+                            ? new Date(trip.departureDate).toLocaleDateString()
+                            : "N/A"}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Weight: {trip.availableWeight} kg
+                        </p>
+                        {trip.flightNumber && (
+                          <p className="text-sm text-gray-500">
+                            Flight: {trip.flightNumber}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleApproveTrip(trip.id)}
+                          className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+                          title="Approve trip"
+                        >
+                          <CheckCircle size={20} />
+                        </button>
+                        <button
+                          onClick={() => handleRejectTrip(trip)}
+                          className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                          title="Reject trip"
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">
+                  No trips are currently pending verification.
+                </p>
+              )}
+            </div>
+
+            <h2 className="text-2xl font-semibold mb-4">
+              All Active Trips (
+              {trips.filter((t) => t.status === "active").length})
             </h2>
             <div className="space-y-4">
-              {trips.map((trip) => (
-                <div
-                  key={trip.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                >
-                  <div>
-                    <p className="font-semibold flex items-center">
-                      <Plane size={16} className="mr-2 text-gray-600" />
-                      {trip.departureCity} to {trip.arrivalCity}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Traveler: {trip.travelerName}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Weight: {trip.availableWeight} kg
-                    </p>
+              {trips
+                .filter((t) => t.status === "active")
+                .map((trip) => (
+                  <div
+                    key={trip.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  >
+                    <div>
+                      <p className="font-semibold flex items-center">
+                        <Plane size={16} className="mr-2 text-gray-600" />
+                        {trip.departureCity} to {trip.arrivalCity}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Traveler: {trip.travelerName}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Date:{" "}
+                        {trip.departureDate
+                          ? new Date(trip.departureDate).toLocaleDateString()
+                          : "N/A"}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Weight: {trip.availableWeight} kg
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800">
+                        Active
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              "Are you sure you want to delete this trip?"
+                            )
+                          ) {
+                            deleteDoc(doc(db, "trips", trip.id)).then(() => {
+                              fetchTrips();
+                              setShowNotification({
+                                isVisible: true,
+                                message: "Trip deleted successfully.",
+                                type: "success",
+                              });
+                            });
+                          }
+                        }}
+                        className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                        title="Delete trip"
+                      >
+                        <Trash size={20} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <span
-                      className={`px-3 py-1 text-xs rounded-full font-medium ${
-                        trip.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : trip.status === "pending_verification"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {trip.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {trips.length === 0 && (
-                <p className="text-gray-500 text-center py-8">
-                  No trips available
+                ))}
+              {trips.filter((t) => t.status === "active").length === 0 && (
+                <p className="text-gray-500 text-center py-4">
+                  No active trips available
                 </p>
               )}
             </div>
@@ -508,6 +909,77 @@ export default function SupportDashboard() {
 
         {activeTab === "requests" && (
           <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-semibold mb-4">
+              Pending Requests (
+              {requests.filter((r) => r.status === "pending").length})
+            </h2>
+            <div className="space-y-4 mb-8">
+              {requests
+                .filter((r) => r.status === "pending")
+                .map((request) => (
+                  <div
+                    key={request.id}
+                    className="flex items-center justify-between p-4 border border-yellow-300 bg-yellow-50 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-semibold">
+                        Request: {request.itemDescription}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        From: {request.senderName} ({request.senderEmail})
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        To: {request.travelerName}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Weight: {request.weight} kg
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Budget: ${request.budget}
+                      </p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleApproveRequest(request.id)}
+                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+                        title="Approve request"
+                      >
+                        <CheckCircle size={20} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              "Are you sure you want to delete this request?"
+                            )
+                          ) {
+                            deleteDoc(
+                              doc(db, "shipmentRequests", request.id)
+                            ).then(() => {
+                              fetchRequests();
+                              setShowNotification({
+                                isVisible: true,
+                                message: "Request deleted successfully.",
+                                type: "success",
+                              });
+                            });
+                          }
+                        }}
+                        className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                        title="Delete request"
+                      >
+                        <Trash size={20} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              {requests.filter((r) => r.status === "pending").length === 0 && (
+                <p className="text-gray-500 text-center py-4">
+                  No pending requests
+                </p>
+              )}
+            </div>
+
             <h2 className="text-2xl font-semibold mb-4">
               All Requests ({requests.length})
             </h2>
@@ -533,8 +1005,10 @@ export default function SupportDashboard() {
                       className={`px-3 py-1 text-xs rounded-full font-medium ${
                         request.status === "pending"
                           ? "bg-yellow-100 text-yellow-800"
-                          : request.status === "accepted"
+                          : request.status === "approved"
                           ? "bg-green-100 text-green-800"
+                          : request.status === "accepted"
+                          ? "bg-blue-100 text-blue-800"
                           : "bg-red-100 text-red-800"
                       }`}
                     >
@@ -744,6 +1218,64 @@ export default function SupportDashboard() {
                 </button>
                 <button
                   onClick={handleRejectUserWithReason}
+                  className="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Trip Rejection Modal */}
+        {showTripRejectModal && tripToReject && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold">Reject Trip</h3>
+                <button
+                  onClick={() => {
+                    setShowTripRejectModal(false);
+                    setTripToReject(null);
+                    setTripRejectionReason("");
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="mb-4">
+                <p className="text-sm text-gray-600">
+                  Rejecting trip from{" "}
+                  <strong>{tripToReject.departureCity}</strong> to{" "}
+                  <strong>{tripToReject.arrivalCity}</strong> by{" "}
+                  {tripToReject.travelerName}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Rejection
+                </label>
+                <textarea
+                  value={tripRejectionReason}
+                  onChange={(e) => setTripRejectionReason(e.target.value)}
+                  className="w-full h-32 p-3 border rounded-lg focus:ring-red-600 focus:border-red-600"
+                  placeholder="e.g., Invalid flight details, incomplete documentation, route not supported..."
+                />
+              </div>
+              <div className="flex justify-end gap-4 mt-6">
+                <button
+                  onClick={() => {
+                    setShowTripRejectModal(false);
+                    setTripToReject(null);
+                    setTripRejectionReason("");
+                  }}
+                  className="py-2 px-4 rounded-lg text-gray-600 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRejectTripWithReason}
                   className="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700"
                 >
                   Confirm Rejection

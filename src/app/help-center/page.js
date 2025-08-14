@@ -59,7 +59,7 @@ const HelpCenterPage = () => {
         now.toLocaleString("en-US", { timeZone: "Australia/Sydney" })
       );
       const hours = aedtTime.getHours();
-      setIsChatAvailable(hours >= 9 && hours < 22);
+      setIsChatAvailable(hours >= 9 && hours < 23);
       setCurrentTime(aedtTime);
     };
 
@@ -138,7 +138,7 @@ const HelpCenterPage = () => {
       category: "account",
       question: "I can't access my account. What should I do?",
       answer:
-        "If you're having trouble accessing your account:\n\n1. Try resetting your password:\n   • Click 'Forgot Password' on the login page\n   • Enter your registered email\n   • Check your email for reset instructions\n\n2. Check if your account is verified:\n   • Unverified accounts have limited access\n   • Complete verification in your profile settings\n\n3. Clear your browser cache and cookies\n\n4. Try a different browser or device\n\n5. If issues persist, contact support:\n   • Email: support@nasosend.com\n   • Live chat (9 AM - 10 PM AEDT)\n   • Include your registered email address",
+        "If you're having trouble accessing your account:\n\n1. Try resetting your password:\n   • Click 'Forgot Password' on the login page\n   • Enter your registered email\n   • Check your email for reset instructions\n\n2. Check if your account is verified:\n   • Unverified accounts have limited access\n   • Complete verification in your profile settings\n\n3. Clear your browser cache and cookies\n\n4. Try a different browser or device\n\n5. If issues persist, contact support:\n   • Email: support@nasosend.com\n   • Live chat (9 AM - 11 PM AEDT)\n   • Include your registered email address",
     },
     {
       id: 9,
