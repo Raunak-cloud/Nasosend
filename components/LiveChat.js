@@ -33,6 +33,7 @@ import {
   Check,
   X,
   Send,
+  Mic,
   Minimize2,
   Clock,
   CheckCheck,
