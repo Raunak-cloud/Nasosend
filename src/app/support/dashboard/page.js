@@ -14,7 +14,6 @@ import {
   onSnapshot,
   arrayUnion,
   getDoc,
-  addDoc,
   serverTimestamp,
   orderBy,
   limit,
@@ -23,6 +22,7 @@ import {
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import SupportChatDashboard from "@/components/SupportChatDashboard";
+import BlogManagement from "@/components/BlogManagement";
 import {
   Users,
   CheckCircle,
@@ -38,6 +38,9 @@ import {
   Globe,
   BarChart,
   Settings,
+  BookOpen,
+  Eye,
+  Clock,
 } from "lucide-react";
 
 export default function SupportDashboard() {
@@ -65,6 +68,7 @@ export default function SupportDashboard() {
     message: "",
     type: "info",
   });
+  const [blogPostsCount, setBlogPostsCount] = useState(0);
 
   const colors = {
     primaryRed: "#DC143C",
@@ -169,22 +173,53 @@ export default function SupportDashboard() {
     }
   }, []);
 
-  // Fetch visitors
+  // Fetch visitors with real-time updates
   const fetchVisitors = useCallback(async () => {
     try {
+      // Query visitors ordered by timestamp, get last 100
       const q = query(
         collection(db, "siteVisitors"),
         orderBy("timestamp", "desc"),
         limit(100)
       );
-      const querySnapshot = await getDocs(q);
-      const visitorsData = [];
-      querySnapshot.forEach((doc) => {
-        visitorsData.push({ id: doc.id, ...doc.data() });
+
+      // Set up real-time listener
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const visitorsData = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          visitorsData.push({
+            id: doc.id,
+            ...data,
+            // Convert Firestore timestamps to Date objects
+            timestamp: data.timestamp?.toDate
+              ? data.timestamp.toDate()
+              : new Date(data.timestamp),
+            lastActivity: data.lastActivity?.toDate
+              ? data.lastActivity.toDate()
+              : new Date(data.lastActivity),
+            sessionStart: data.sessionStart?.toDate
+              ? data.sessionStart.toDate()
+              : new Date(data.sessionStart),
+          });
+        });
+        setVisitors(visitorsData);
       });
-      setVisitors(visitorsData);
+
+      return () => unsubscribe();
     } catch (error) {
       console.error("Error fetching visitors:", error);
+    }
+  }, []);
+
+  // Fetch blog posts count
+  const fetchBlogPostsCount = useCallback(async () => {
+    try {
+      const q = query(collection(db, "blogPosts"));
+      const querySnapshot = await getDocs(q);
+      setBlogPostsCount(querySnapshot.size);
+    } catch (error) {
+      console.error("Error fetching blog posts count:", error);
     }
   }, []);
 
@@ -197,6 +232,7 @@ export default function SupportDashboard() {
           fetchTrips(),
           fetchRequests(),
           fetchVisitors(),
+          fetchBlogPostsCount(),
         ]).finally(() => setLoadingData(false));
       } else {
         setLoadingData(false);
@@ -210,6 +246,7 @@ export default function SupportDashboard() {
     fetchTrips,
     fetchRequests,
     fetchVisitors,
+    fetchBlogPostsCount,
   ]);
 
   // Handle user verification approval
@@ -655,6 +692,17 @@ export default function SupportDashboard() {
             Live Chat
           </button>
           <button
+            onClick={() => setActiveTab("blog")}
+            className={`px-4 py-2 font-medium text-sm transition-colors duration-200 ${
+              activeTab === "blog"
+                ? "border-b-2 border-purple-600 text-purple-600"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <BookOpen className="inline-block w-4 h-4 mr-2" />
+            Blog Management
+          </button>
+          <button
             onClick={() => setActiveTab("verification")}
             className={`px-4 py-2 font-medium text-sm transition-colors duration-200 ${
               activeTab === "verification"
@@ -669,7 +717,7 @@ export default function SupportDashboard() {
             onClick={() => setActiveTab("trips")}
             className={`px-4 py-2 font-medium text-sm transition-colors duration-200 ${
               activeTab === "trips"
-                ? "border-b-2 border-purple-600 text-purple-600"
+                ? "border-b-2 border-yellow-600 text-yellow-600"
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
@@ -719,6 +767,10 @@ export default function SupportDashboard() {
               agentProfile={agentProfile}
             />
           </div>
+        )}
+
+        {activeTab === "blog" && (
+          <BlogManagement user={user} userProfile={userProfile} />
         )}
 
         {activeTab === "verification" && (
@@ -1028,62 +1080,193 @@ export default function SupportDashboard() {
 
         {activeTab === "visitors" && (
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-semibold mb-4">Site Visitors</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold">Site Visitors</h2>
+              <button
+                onClick={fetchVisitors}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {/* Real-time Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h3 className="font-semibold text-blue-800">Total Visitors</h3>
                 <p className="text-2xl font-bold text-blue-600">
                   {visitors.length}
                 </p>
+                <p className="text-xs text-blue-600 mt-1">Last 100 sessions</p>
               </div>
+
               <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-green-800">Last 24 Hours</h3>
+                <h3 className="font-semibold text-green-800">Active Now</h3>
                 <p className="text-2xl font-bold text-green-600">
                   {
                     visitors.filter((v) => {
-                      const timestamp =
-                        v.timestamp?.toDate?.() || new Date(v.timestamp);
-                      return Date.now() - timestamp.getTime() < 86400000;
+                      const lastActivity = v.lastActivity;
+                      const fiveMinutesAgo = new Date(
+                        Date.now() - 5 * 60 * 1000
+                      );
+                      return v.isActive && lastActivity >= fiveMinutesAgo;
                     }).length
                   }
                 </p>
+                <p className="text-xs text-green-600 mt-1">Last 5 minutes</p>
               </div>
+
               <div className="bg-purple-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-purple-800">Authenticated</h3>
+                <h3 className="font-semibold text-purple-800">Last 24 Hours</h3>
                 <p className="text-2xl font-bold text-purple-600">
+                  {
+                    visitors.filter((v) => {
+                      const timestamp = v.timestamp;
+                      const last24Hours = new Date(
+                        Date.now() - 24 * 60 * 60 * 1000
+                      );
+                      return timestamp >= last24Hours;
+                    }).length
+                  }
+                </p>
+                <p className="text-xs text-purple-600 mt-1">Unique sessions</p>
+              </div>
+
+              <div className="bg-orange-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-orange-800">
+                  Registered Users
+                </h3>
+                <p className="text-2xl font-bold text-orange-600">
                   {visitors.filter((v) => v.isAuthenticated).length}
                 </p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-800">Anonymous</h3>
-                <p className="text-2xl font-bold text-gray-600">
-                  {visitors.filter((v) => !v.isAuthenticated).length}
+                <p className="text-xs text-orange-600 mt-1">
+                  {visitors.length > 0
+                    ? `${Math.round(
+                        (visitors.filter((v) => v.isAuthenticated).length /
+                          visitors.length) *
+                          100
+                      )}% of total`
+                    : "0% of total"}
                 </p>
               </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-800">
+                  Avg. Time on Site
+                </h3>
+                <p className="text-2xl font-bold text-gray-600">
+                  {visitors.length > 0
+                    ? `${Math.round(
+                        visitors.reduce(
+                          (acc, v) => acc + (v.totalTimeOnSite || 0),
+                          0
+                        ) /
+                          visitors.length /
+                          60
+                      )}m`
+                    : "0m"}
+                </p>
+                <p className="text-xs text-gray-600 mt-1">Per session</p>
+              </div>
             </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {visitors.map((visitor) => (
-                <div
-                  key={visitor.id}
-                  className="p-3 border rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">
-                        {visitor.userEmail ||
-                          `Anonymous (${visitor.sessionId?.slice(-8)})`}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Page: {visitor.pathname}
-                      </p>
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      {visitor.timestamp?.toDate?.()?.toLocaleString() ||
-                        "Unknown"}
-                    </p>
-                  </div>
+
+            {/* Visitors List */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Recent Visitors</h3>
+              {visitors.length > 0 ? (
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {visitors.map((visitor) => {
+                    const isActive =
+                      visitor.isActive &&
+                      visitor.lastActivity >=
+                        new Date(Date.now() - 5 * 60 * 1000);
+                    const timeOnSite = visitor.totalTimeOnSite || 0;
+                    const minutes = Math.floor(timeOnSite / 60);
+                    const seconds = timeOnSite % 60;
+
+                    return (
+                      <div
+                        key={visitor.id}
+                        className={`p-4 border rounded-lg ${
+                          isActive ? "bg-green-50 border-green-200" : "bg-white"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div
+                                className={`w-3 h-3 rounded-full ${
+                                  isActive
+                                    ? "bg-green-500 animate-pulse"
+                                    : visitor.isAuthenticated
+                                    ? "bg-blue-400"
+                                    : "bg-gray-400"
+                                }`}
+                              ></div>
+                              <span className="font-semibold text-sm">
+                                {visitor.userEmail ||
+                                  `Visitor ${visitor.sessionId?.slice(-8)}`}
+                              </span>
+                              {visitor.isAuthenticated && (
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                  Registered
+                                </span>
+                              )}
+                              {isActive && (
+                                <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
+                                  Active Now
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600">
+                              <div>
+                                <span className="font-semibold">Page:</span>{" "}
+                                {visitor.pathname}
+                              </div>
+                              <div>
+                                <span className="font-semibold">Device:</span>{" "}
+                                {visitor.deviceType}
+                              </div>
+                              <div>
+                                <span className="font-semibold">Browser:</span>{" "}
+                                {visitor.browser}
+                              </div>
+                              <div>
+                                <span className="font-semibold">Country:</span>{" "}
+                                {visitor.country}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right ml-4">
+                            <p className="text-xs font-semibold text-gray-700">
+                              {visitor.timestamp?.toLocaleDateString()}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {visitor.timestamp?.toLocaleTimeString()}
+                            </p>
+                            {visitor.lastActivity && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                Last:{" "}
+                                {visitor.lastActivity.toLocaleTimeString()}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Globe className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p>No visitor data available yet.</p>
+                  <p className="text-sm mt-2">
+                    Visitor tracking will start once users visit the site.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1091,7 +1274,7 @@ export default function SupportDashboard() {
         {activeTab === "analytics" && (
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h2 className="text-2xl font-semibold mb-4">Analytics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-lg">
                 <h3 className="text-lg font-semibold mb-2">Total Users</h3>
                 <p className="text-3xl font-bold">{users.length}</p>
@@ -1107,6 +1290,11 @@ export default function SupportDashboard() {
                 <p className="text-sm mt-2">Total: {trips.length}</p>
               </div>
               <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg">
+                <h3 className="text-lg font-semibold mb-2">Blog Posts</h3>
+                <p className="text-3xl font-bold">{blogPostsCount}</p>
+                <p className="text-sm mt-2">Content published</p>
+              </div>
+              <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-lg">
                 <h3 className="text-lg font-semibold mb-2">Requests</h3>
                 <p className="text-3xl font-bold">{requests.length}</p>
                 <p className="text-sm mt-2">

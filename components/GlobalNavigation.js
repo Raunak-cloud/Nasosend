@@ -466,16 +466,34 @@ export default function GlobalNavigation() {
     return null;
   };
 
-  const navItems = [
-    {
-      href: user ? "/dashboard" : "/",
-      label: "Home",
-      paths: ["/dashboard", "/"],
-    },
-    { href: "/blogs", label: "Blog", paths: ["/blogs"] },
-    { href: "/how-it-works", label: "How It Works", paths: ["/how-it-works"] },
-    { href: "/help-center", label: "Support", paths: ["/help-center"] },
-  ];
+  const getNavItems = () => {
+    const items = [
+      {
+        href: user ? "/dashboard" : "/",
+        label: "Home",
+        paths: ["/dashboard", "/"],
+      },
+      { href: "/blogs", label: "Blog", paths: ["/blogs"] },
+      {
+        href: "/how-it-works",
+        label: "How It Works",
+        paths: ["/how-it-works"],
+      },
+      { href: "/help-center", label: "Support", paths: ["/help-center"] },
+    ];
+
+    if (userProfile?.role === "support") {
+      items.push({
+        href: "/support/dashboard",
+        label: "Admin",
+        paths: ["/support/dashboard"],
+      });
+    }
+
+    return items;
+  };
+
+  const navItems = getNavItems();
 
   return (
     <nav
