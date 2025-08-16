@@ -361,13 +361,11 @@ const SafetyGuidelines = () => {
       country: "Australia",
       emergency: "000",
       police: "000",
-      customs: "1800 803 772",
     },
     {
       country: "Nepal",
       emergency: "100/112",
       police: "100",
-      customs: "+977-1-4211966",
     },
   ];
 

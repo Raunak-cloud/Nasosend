@@ -375,6 +375,7 @@ export default function IdentityVerification() {
           verification: verificationData,
           verified: false,
           verificationPending: true,
+          tokens: 2,
         },
         { merge: true }
       );

@@ -1083,7 +1083,7 @@ function TravelerDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-4">
-                    Expect receipt to pick up from (Select all that apply) *
+                    Expect recipient to pick up from (Select all that apply) *
                   </label>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-48 overflow-y-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

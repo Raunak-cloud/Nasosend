@@ -275,7 +275,7 @@ export default function SupportDashboard() {
         type: "success",
         title: "Identity Verification Approved",
         message:
-          "Your identity has been successfully verified. You can now access all features.",
+          "Your identity has been successfully verified. We have sent 2 free tokens to your account. You can now access all features.",
         read: false,
         timestamp: new Date().toISOString(),
       };

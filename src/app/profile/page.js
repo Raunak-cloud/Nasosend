@@ -33,7 +33,7 @@ export default function ProfilePage() {
     city: "",
     country: "",
     postalCode: "",
-    gender: "male",
+    gender: "",
   });
 
   useEffect(() => {
@@ -48,12 +48,12 @@ export default function ProfilePage() {
         displayName:
           userProfile.verification?.fullName || userProfile.displayName || "",
         email: user.email || "",
-        bio: userProfile.bio || "",
-        address: userProfile.address || "",
-        city: userProfile.city || "",
-        country: userProfile.country || "Australia",
-        postalCode: userProfile.postalCode || "",
-        gender: userProfile.gender || "male",
+        bio: userProfile.verification.bio || "",
+        address: userProfile.verification.streetAddress || "",
+        city: userProfile.verification.city || "",
+        country: userProfile.verification.country || "",
+        postalCode: userProfile.verification.postcode || "",
+        gender: userProfile.verification.gender || "male",
       });
     }
   }, [userProfile]);
@@ -205,7 +205,7 @@ export default function ProfilePage() {
                 }
                 disabled={isSaving}
                 className={`group relative px-8 py-3 bg-white text-gray-700 rounded-xl font-semibold transition-all duration-200 hover:shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isEditing ? "bg-green-500 text-white" : ""
+                  isEditing ? "bg-green-500" : ""
                 }`}
               >
                 <div className="flex items-center gap-2">

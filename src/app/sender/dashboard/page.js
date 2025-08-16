@@ -123,7 +123,7 @@ export default function SenderDashboardPage() {
   };
 
   const [tokenInfo, setTokenInfo] = useState({
-    availableTokens: 10,
+    availableTokens: userProfile.tokens,
   });
 
   useEffect(() => {
