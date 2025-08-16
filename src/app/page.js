@@ -103,7 +103,7 @@ export default function HomePage() {
               className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-primaryBlue leading-tight mb-4"
               style={{ color: colors.primaryBlue }}
             >
-              Crowdshipping
+              Community driven shipping
             </h1>
           </motion.div>
 
