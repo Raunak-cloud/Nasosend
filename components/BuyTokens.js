@@ -374,18 +374,6 @@ const PaymentForm = ({ selectedPackage, onSuccess, onBack }) => {
               <p className="text-sm font-medium text-gray-900">{userEmail}</p>
             </div>
           )}
-
-          {/* Test Mode Notice */}
-          <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-            <p className="text-xs text-yellow-800 font-medium mb-2">
-              TEST MODE - Use test card numbers:
-            </p>
-            <ul className="text-xs text-yellow-700 space-y-1">
-              <li>• Success: 4242 4242 4242 4242</li>
-              <li>• Decline: 4000 0000 0000 0002</li>
-              <li>• Any future expiry & any 3-digit CVV</li>
-            </ul>
-          </div>
         </div>
 
         {/* Payment Form */}
