@@ -15,23 +15,15 @@ import {
   serverTimestamp,
   getDoc,
   updateDoc,
-  arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import BuyTokens from "@/components/BuyTokens";
 import {
-  Package,
-  Plane,
   Users,
   CheckCircle,
   ArrowRight,
   MapPin,
   Clock,
-  DollarSign,
-  Star,
-  CreditCard,
-  Gift,
-  Filter,
   ChevronDown,
   X,
   AlertCircle,
@@ -123,7 +115,7 @@ export default function SenderDashboardPage() {
   };
 
   const [tokenInfo, setTokenInfo] = useState({
-    availableTokens: userProfile.tokens,
+    availableTokens: userProfile.tokens || 0,
   });
 
   useEffect(() => {

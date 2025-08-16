@@ -108,9 +108,9 @@ const PaymentForm = ({ selectedPackage, onSuccess, onBack }) => {
 
       // Check if response is ok
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Server response error:", errorText);
-        throw new Error(`Server error: ${response.status}`);
+        const errorData = await response.json();
+        console.error("Server response error:", errorData);
+        throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
       const responseData = await response.json();
@@ -149,7 +149,99 @@ const PaymentForm = ({ selectedPackage, onSuccess, onBack }) => {
       console.log("Payment result:", result);
 
       if (result.error) {
-        setError(result.error.message);
+        // Handle specific Stripe errors
+        let errorMessage = result.error.message;
+
+        // Provide more user-friendly error messages
+        switch (result.error.code) {
+          case "card_declined":
+            errorMessage =
+              "Your card was declined. Please try a different card or contact your bank.";
+            if (result.error.decline_code) {
+              switch (result.error.decline_code) {
+                case "insufficient_funds":
+                  errorMessage =
+                    "Your card has insufficient funds. Please try a different payment method.";
+                  break;
+                case "lost_card":
+                  errorMessage =
+                    "This card has been reported lost. Please use a different card.";
+                  break;
+                case "stolen_card":
+                  errorMessage =
+                    "This card has been reported stolen. Please use a different card.";
+                  break;
+                case "expired_card":
+                  errorMessage =
+                    "Your card has expired. Please use a different card.";
+                  break;
+                case "incorrect_cvc":
+                  errorMessage =
+                    "The CVV/CVC number is incorrect. Please check and try again.";
+                  break;
+                case "processing_error":
+                  errorMessage =
+                    "An error occurred while processing your card. Please try again.";
+                  break;
+                case "incorrect_number":
+                  errorMessage =
+                    "The card number is incorrect. Please check and try again.";
+                  break;
+                default:
+                  errorMessage = `Card declined: ${result.error.decline_code}. Please try a different card.`;
+              }
+            }
+            break;
+          case "incorrect_number":
+            errorMessage =
+              "The card number is incorrect. Please check and try again.";
+            break;
+          case "invalid_number":
+            errorMessage = "The card number is not a valid credit card number.";
+            break;
+          case "invalid_expiry_month":
+            errorMessage = "The card's expiration month is invalid.";
+            break;
+          case "invalid_expiry_year":
+            errorMessage = "The card's expiration year is invalid.";
+            break;
+          case "invalid_cvc":
+            errorMessage = "The card's security code (CVV/CVC) is invalid.";
+            break;
+          case "incorrect_cvc":
+            errorMessage = "The card's security code (CVV/CVC) is incorrect.";
+            break;
+          case "expired_card":
+            errorMessage =
+              "Your card has expired. Please use a different card.";
+            break;
+          case "incorrect_zip":
+            errorMessage = "The ZIP/postal code you entered is incorrect.";
+            break;
+          case "incomplete_number":
+            errorMessage = "Your card number is incomplete.";
+            break;
+          case "incomplete_cvc":
+            errorMessage = "Your card's security code is incomplete.";
+            break;
+          case "incomplete_expiry":
+            errorMessage = "Your card's expiration date is incomplete.";
+            break;
+          case "processing_error":
+            errorMessage =
+              "An error occurred while processing your card. Please try again.";
+            break;
+          case "rate_limit":
+            errorMessage =
+              "Too many requests. Please wait a moment and try again.";
+            break;
+          default:
+            // Use the original message if we don't have a specific one
+            errorMessage =
+              result.error.message || "Payment failed. Please try again.";
+        }
+
+        setError(errorMessage);
         setProcessing(false);
       } else {
         if (result.paymentIntent.status === "succeeded") {
@@ -355,9 +447,14 @@ const PaymentForm = ({ selectedPackage, onSuccess, onBack }) => {
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start">
-              <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
-              <span className="text-sm">{error}</span>
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <div className="flex items-start">
+                <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium">Payment Error</p>
+                  <p className="text-sm mt-1">{error}</p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -648,7 +745,7 @@ const BuyTokens = ({
             ) : (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading payment system..</p>
+                <p className="text-gray-600">Loading payment system...</p>
               </div>
             )}
           </div>
