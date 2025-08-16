@@ -1,5 +1,6 @@
 import React from "react";
 import Image from "next/image";
+import Link from "next/link"; // Import the Link component
 import { Mail, Phone, MapPin, Facebook, Instagram } from "lucide-react";
 
 const Footer = () => {
@@ -27,7 +28,6 @@ const Footer = () => {
                 <Mail className="w-4 h-4 mr-2" />
                 support@nasosend.com
               </div>
-
               <div className="flex items-center">
                 <MapPin className="w-4 h-4 mr-2" />
                 Sydney, Australia
@@ -40,7 +40,6 @@ const Footer = () => {
               >
                 <Facebook className="w-5 h-5" />
               </a>
-
               <a
                 href="#"
                 className="text-gray-400 hover:text-white transition-colors"
@@ -54,24 +53,24 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold mb-4">Platform</h4>
             <div className="space-y-3 text-sm">
-              <a
+              <Link
                 href="/how-it-works"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 How it Works
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/investors"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Investors
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/safety"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Safety Guidelines
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -79,24 +78,24 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold mb-4">Community</h4>
             <div className="space-y-3 text-sm">
-              <a
+              <Link
                 href="/sender/dashboard"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Send an Item
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/traveler/dashboard"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Become a Traveler
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/blogs"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Blog
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -104,19 +103,18 @@ const Footer = () => {
           <div>
             <h4 className="font-semibold mb-4">Support</h4>
             <div className="space-y-3 text-sm">
-              <a
+              <Link
                 href="/help-center"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Contact Us
-              </a>
-
-              <a
+              </Link>
+              <Link
                 href="/report-bugs"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Report bugs
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -125,18 +123,30 @@ const Footer = () => {
         <div className="border-t border-gray-700 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex flex-wrap items-center space-x-6 text-sm text-gray-300 mb-4 md:mb-0">
-              <a href="/terms" className="hover:text-white transition-colors">
+              <Link
+                href="/terms"
+                className="hover:text-white transition-colors"
+              >
                 Terms of Service
-              </a>
-              <a href="/privacy" className="hover:text-white transition-colors">
+              </Link>
+              <Link
+                href="/privacy"
+                className="hover:text-white transition-colors"
+              >
                 Privacy Policy
-              </a>
-              <a href="/cookies" className="hover:text-white transition-colors">
+              </Link>
+              <Link
+                href="/cookies"
+                className="hover:text-white transition-colors"
+              >
                 Cookie Policy
-              </a>
-              <a href="/refund" className="hover:text-white transition-colors">
+              </Link>
+              <Link
+                href="/refund"
+                className="hover:text-white transition-colors"
+              >
                 Refund Policy
-              </a>
+              </Link>
             </div>
             <div className="text-sm text-gray-300">
               <p>&copy; 2025 Nasosend. All rights reserved.</p>

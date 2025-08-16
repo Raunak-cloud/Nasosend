@@ -37,6 +37,148 @@ const BlogDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Blog content styles to match the editor
+  const blogContentStyles = `
+    .blog-content ul {
+      list-style-type: disc !important;
+      padding-left: 2rem !important;
+      margin: 1rem 0 !important;
+    }
+    .blog-content ol {
+      list-style-type: decimal !important;
+      padding-left: 2rem !important;
+      margin: 1rem 0 !important;
+    }
+    .blog-content ul li,
+    .blog-content ol li {
+      display: list-item !important;
+      margin: 0.5rem 0 !important;
+      list-style-position: outside !important;
+      line-height: 1.7;
+    }
+    .blog-content ul ul {
+      list-style-type: circle !important;
+      margin-top: 0.5rem !important;
+    }
+    .blog-content ul ul ul {
+      list-style-type: square !important;
+    }
+    .blog-content blockquote {
+      border-left: 4px solid #3b82f6;
+      padding-left: 1.5rem;
+      margin: 1.5rem 0;
+      font-style: italic;
+      color: #4b5563;
+      background-color: #f9fafb;
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+      padding-right: 1rem;
+      border-radius: 0.375rem;
+    }
+    .blog-content pre {
+      background-color: #1f2937;
+      color: #f3f4f6;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      margin: 1.5rem 0;
+      line-height: 1.5;
+    }
+    .blog-content h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 2rem 0 1rem 0;
+      color: #111827;
+      line-height: 1.2;
+    }
+    .blog-content h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 1.75rem 0 0.875rem 0;
+      color: #1f2937;
+      line-height: 1.3;
+    }
+    .blog-content h3 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.75rem 0;
+      color: #374151;
+      line-height: 1.4;
+    }
+    .blog-content p {
+      margin: 1rem 0;
+      line-height: 1.8;
+      color: #374151;
+    }
+    .blog-content a {
+      color: #3b82f6;
+      text-decoration: underline;
+      transition: color 0.2s;
+    }
+    .blog-content a:hover {
+      color: #2563eb;
+    }
+    .blog-content strong {
+      font-weight: 600;
+      color: #111827;
+    }
+    .blog-content em {
+      font-style: italic;
+    }
+    .blog-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 0.5rem;
+      margin: 1.5rem auto;
+      display: block;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .blog-content hr {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 2rem 0;
+    }
+    .blog-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+    }
+    .blog-content th {
+      background-color: #f3f4f6;
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      border: 1px solid #e5e7eb;
+    }
+    .blog-content td {
+      padding: 0.75rem;
+      border: 1px solid #e5e7eb;
+    }
+    .blog-content code {
+      background-color: #f3f4f6;
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875em;
+      color: #dc2626;
+    }
+    .blog-content s {
+      text-decoration: line-through;
+      opacity: 0.75;
+    }
+    .blog-content u {
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 2px;
+    }
+    .blog-content mark {
+      background-color: #fef3c7;
+      padding: 0.125rem 0.25rem;
+      border-radius: 0.125rem;
+    }
+  `;
+
   useEffect(() => {
     const fetchPost = async () => {
       if (!params.slug) {
@@ -229,59 +371,6 @@ const BlogDetailPage = () => {
     );
   };
 
-  // Format content with basic markdown support
-  const formatContent = (content) => {
-    if (!content) return "";
-
-    // Convert markdown-style formatting to HTML
-    let formatted = content
-      // Headers
-      .replace(
-        /^### (.*$)/gim,
-        '<h3 class="text-xl font-bold mt-6 mb-3">$1</h3>'
-      )
-      .replace(
-        /^## (.*$)/gim,
-        '<h2 class="text-2xl font-bold mt-8 mb-4">$2</h2>'
-      )
-      .replace(
-        /^# (.*$)/gim,
-        '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>'
-      )
-      // Bold
-      .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-      // Italic
-      .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
-      // Lists
-      .replace(/^\* (.+)/gim, '<li class="ml-6 list-disc">$1</li>')
-      .replace(/^- (.+)/gim, '<li class="ml-6 list-disc">$1</li>')
-      // Quotes
-      .replace(
-        /^> (.+)/gim,
-        '<blockquote class="border-l-4 border-blue-500 pl-4 my-4 italic text-gray-700">$1</blockquote>'
-      )
-      // Links
-      .replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer">$1</a>'
-      )
-      // Line breaks
-      .replace(/\n\n/g, '</p><p class="mb-4">')
-      .replace(/\n/g, "<br />");
-
-    // Wrap in paragraphs if not already wrapped
-    if (!formatted.startsWith("<")) {
-      formatted = `<p class="mb-4">${formatted}</p>`;
-    }
-
-    // Wrap consecutive <li> elements in <ul>
-    formatted = formatted.replace(/(<li[^>]*>.*?<\/li>\s*)+/g, (match) => {
-      return `<ul class="list-disc ml-6 mb-4">${match}</ul>`;
-    });
-
-    return formatted;
-  };
-
   // Handle share functionality
   const handleShare = async () => {
     const shareData = {
@@ -337,6 +426,9 @@ const BlogDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
+      {/* Inject blog content styles */}
+      <style dangerouslySetInnerHTML={{ __html: blogContentStyles }} />
+
       {/* Header with breadcrumbs */}
       <div className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -438,11 +530,31 @@ const BlogDetailPage = () => {
           </div>
         </header>
 
-        {/* Post content */}
+        {/* Post content - Now properly styled for HTML content */}
         <div
-          className="prose prose-lg max-w-none mb-12"
-          dangerouslySetInnerHTML={{ __html: formatContent(post.content) }}
+          className="blog-content prose prose-lg max-w-none mb-12"
+          dangerouslySetInnerHTML={{ __html: post.content }}
         />
+
+        {/* Author box */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-12">
+          <div className="flex items-start gap-4">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+              {post.authorName ? post.authorName[0].toUpperCase() : "N"}
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-gray-900 mb-1">About the Author</h3>
+              <p className="text-gray-700 mb-2">
+                <strong>{post.authorName || "Nasosend Team"}</strong>
+              </p>
+              <p className="text-gray-600 text-sm">
+                Part of the Nasosend support team, dedicated to providing
+                helpful content and guides for our community of travelers and
+                senders.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Related posts */}
         {relatedPosts.length > 0 && (
@@ -491,6 +603,19 @@ const BlogDetailPage = () => {
         )}
 
         {/* Call to action */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-8 text-white text-center mt-12">
+          <BookOpen className="w-12 h-12 mx-auto mb-4" />
+          <h3 className="text-2xl font-bold mb-3">Want to Read More?</h3>
+          <p className="mb-6 max-w-2xl mx-auto">
+            Explore our collection of helpful guides, tips, and stories from the
+            Nasosend community.
+          </p>
+          <Link href="/blogs">
+            <button className="bg-white text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors">
+              Browse All Articles
+            </button>
+          </Link>
+        </div>
       </article>
     </div>
   );

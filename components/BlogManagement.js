@@ -1,7 +1,7 @@
 // components/BlogManagement.js
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { db, storage } from "@/lib/firebase";
 import {
   collection,
@@ -25,7 +25,6 @@ import {
   Edit,
   Eye,
   Save,
-  Image as ImageIcon,
   Bold,
   Italic,
   List,
@@ -38,9 +37,112 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
+  Underline,
+  Highlighter,
+  Type,
+  Heading1,
+  Heading2,
+  Heading3,
+  ListOrdered,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Code,
+  Palette,
+  Strikethrough,
+  Undo,
+  Redo,
+  Image as ImageIcon,
+  AlignJustify,
+  Minus,
 } from "lucide-react";
 
 const BlogManagement = ({ user, userProfile }) => {
+  // Editor Styles
+  const editorStyles = `
+    .editor-content ul {
+      list-style-type: disc !important;
+      padding-left: 2rem !important;
+      margin: 0.5rem 0 !important;
+    }
+    .editor-content ol {
+      list-style-type: decimal !important;
+      padding-left: 2rem !important;
+      margin: 0.5rem 0 !important;
+    }
+    .editor-content ul li,
+    .editor-content ol li {
+      display: list-item !important;
+      margin: 0.25rem 0 !important;
+      list-style-position: outside !important;
+    }
+    .editor-content ul ul {
+      list-style-type: circle !important;
+    }
+    .editor-content ul ul ul {
+      list-style-type: square !important;
+    }
+    .editor-content blockquote {
+      border-left: 4px solid #e5e7eb;
+      padding-left: 1rem;
+      margin: 1rem 0;
+      font-style: italic;
+      color: #6b7280;
+    }
+    .editor-content pre {
+      background-color: #f3f4f6;
+      padding: 1rem;
+      border-radius: 0.375rem;
+      overflow-x: auto;
+      font-family: monospace;
+    }
+    .editor-content h1 {
+      font-size: 2rem;
+      font-weight: bold;
+      margin: 1rem 0;
+    }
+    .editor-content h2 {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin: 0.75rem 0;
+    }
+    .editor-content h3 {
+      font-size: 1.25rem;
+      font-weight: bold;
+      margin: 0.5rem 0;
+    }
+    .editor-content a {
+      color: #3b82f6;
+      text-decoration: underline;
+    }
+    .editor-content a:hover {
+      color: #2563eb;
+    }
+    .editor-content p {
+      margin-bottom: 0.5rem;
+    }
+    .line-spacing-indicator {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .line-spacing-indicator:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: white;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      margin-bottom: 0.25rem;
+      z-index: 10;
+    }
+  `;
+
   // State Management
   const [blogPosts, setBlogPosts] = useState([]);
   const [showBlogEditor, setShowBlogEditor] = useState(false);
@@ -64,6 +166,14 @@ const BlogManagement = ({ user, userProfile }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [selectedFontSize, setSelectedFontSize] = useState("16px");
+  const [selectedFontFamily, setSelectedFontFamily] = useState("Arial");
+  const [textColor, setTextColor] = useState("#000000");
+  const [highlightColor, setHighlightColor] = useState("#FFFF00");
+  const [lineHeight, setLineHeight] = useState("1.6");
+  const contentEditableRef = useRef(null);
+  const [undoStack, setUndoStack] = useState([]);
+  const [redoStack, setRedoStack] = useState([]);
 
   const blogCategories = [
     "Festival Guides",
@@ -74,6 +184,40 @@ const BlogManagement = ({ user, userProfile }) => {
     "Success Stories",
     "International Shipping",
     "Customer Support",
+  ];
+
+  const fontSizes = [
+    "12px",
+    "14px",
+    "16px",
+    "18px",
+    "20px",
+    "24px",
+    "28px",
+    "32px",
+    "36px",
+  ];
+  const fontFamilies = [
+    "Arial",
+    "Times New Roman",
+    "Georgia",
+    "Helvetica",
+    "Courier New",
+    "Verdana",
+    "Trebuchet MS",
+    "Comic Sans MS",
+    "Impact",
+    "Lucida Console",
+  ];
+  const lineSpacings = [
+    { label: "Single", value: "1" },
+    { label: "1.15", value: "1.15" },
+    { label: "1.5", value: "1.5" },
+    { label: "1.6", value: "1.6" },
+    { label: "1.8", value: "1.8" },
+    { label: "Double", value: "2" },
+    { label: "2.5", value: "2.5" },
+    { label: "Triple", value: "3" },
   ];
 
   // Fetch blog posts
@@ -105,6 +249,159 @@ const BlogManagement = ({ user, userProfile }) => {
   const showNotification = (message, type = "info") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 5000);
+  };
+
+  // Rich Text Editor Functions
+  const execCommand = (command, value = null) => {
+    document.execCommand(command, false, value);
+    if (contentEditableRef.current) {
+      contentEditableRef.current.focus();
+    }
+    saveToUndoStack();
+  };
+
+  const saveToUndoStack = () => {
+    if (contentEditableRef.current) {
+      const currentContent = contentEditableRef.current.innerHTML;
+      setUndoStack((prev) => [...prev.slice(-20), currentContent]);
+      setRedoStack([]);
+    }
+  };
+
+  const handleUndo = () => {
+    if (undoStack.length > 1) {
+      const newUndoStack = [...undoStack];
+      const currentState = newUndoStack.pop();
+      const previousState = newUndoStack[newUndoStack.length - 1];
+
+      setRedoStack((prev) => [...prev, currentState]);
+      setUndoStack(newUndoStack);
+
+      if (contentEditableRef.current && previousState) {
+        contentEditableRef.current.innerHTML = previousState;
+      }
+    }
+  };
+
+  const handleRedo = () => {
+    if (redoStack.length > 0) {
+      const newRedoStack = [...redoStack];
+      const nextState = newRedoStack.pop();
+
+      if (contentEditableRef.current && nextState) {
+        contentEditableRef.current.innerHTML = nextState;
+        setUndoStack((prev) => [...prev, nextState]);
+        setRedoStack(newRedoStack);
+      }
+    }
+  };
+
+  const insertHeading = (level) => {
+    const selection = window.getSelection();
+    const range = selection.getRangeAt(0);
+    const selectedText = range.toString();
+
+    const heading = document.createElement(`h${level}`);
+    heading.textContent = selectedText || `Heading ${level}`;
+
+    range.deleteContents();
+    range.insertNode(heading);
+
+    saveToUndoStack();
+  };
+
+  const changeTextColor = (color) => {
+    execCommand("foreColor", color);
+    setTextColor(color);
+  };
+
+  const changeHighlightColor = (color) => {
+    execCommand("hiliteColor", color);
+    setHighlightColor(color);
+  };
+
+  const changeFontSize = (size) => {
+    const sizeMap = {
+      "12px": "1",
+      "14px": "2",
+      "16px": "3",
+      "18px": "4",
+      "20px": "5",
+      "24px": "6",
+      "28px": "7",
+      "32px": "7",
+      "36px": "7",
+    };
+    execCommand("fontSize", sizeMap[size]);
+    setSelectedFontSize(size);
+  };
+
+  const changeFontFamily = (font) => {
+    execCommand("fontName", font);
+    setSelectedFontFamily(font);
+  };
+
+  const changeLineHeight = (spacing) => {
+    setLineHeight(spacing);
+    if (contentEditableRef.current) {
+      // Apply line height to selected text or entire content
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+
+        if (!range.collapsed) {
+          // Apply to selected text
+          const span = document.createElement("span");
+          span.style.lineHeight = spacing;
+
+          try {
+            range.surroundContents(span);
+          } catch (e) {
+            // If surroundContents fails, use alternative method
+            const contents = range.extractContents();
+            span.appendChild(contents);
+            range.insertNode(span);
+          }
+        } else {
+          // Apply to the entire paragraph or content
+          contentEditableRef.current.style.lineHeight = spacing;
+        }
+      } else {
+        // Apply to entire content if no selection
+        contentEditableRef.current.style.lineHeight = spacing;
+      }
+
+      contentEditableRef.current.focus();
+      saveToUndoStack();
+    }
+  };
+
+  const insertLink = () => {
+    const url = prompt("Enter the URL:");
+    if (url) {
+      execCommand("createLink", url);
+    }
+  };
+
+  const insertImage = () => {
+    const url = prompt("Enter the image URL:");
+    if (url) {
+      execCommand("insertImage", url);
+    }
+  };
+
+  const handleContentChange = () => {
+    if (contentEditableRef.current) {
+      const htmlContent = contentEditableRef.current.innerHTML;
+      setBlogForm((prev) => ({ ...prev, content: htmlContent }));
+
+      // Calculate read time based on text content
+      const textContent = contentEditableRef.current.textContent || "";
+      const wordsPerMinute = 200;
+      const words = textContent.split(/\s+/).length;
+      const minutes = Math.ceil(words / wordsPerMinute);
+      setBlogForm((prev) => ({ ...prev, readTime: `${minutes} min read` }));
+    }
   };
 
   // Handle image file selection
@@ -193,6 +490,8 @@ const BlogManagement = ({ user, userProfile }) => {
     setPreviewMode(false);
     setImageFile(null);
     setImagePreview("");
+    setUndoStack([]);
+    setRedoStack([]);
   };
 
   // Handle edit blog
@@ -213,6 +512,17 @@ const BlogManagement = ({ user, userProfile }) => {
     setShowBlogEditor(true);
     setPreviewMode(false);
   };
+
+  // Set content in editor after modal opens
+  useEffect(() => {
+    if (showBlogEditor && contentEditableRef.current) {
+      if (editingBlog && blogForm.content) {
+        contentEditableRef.current.innerHTML = blogForm.content;
+      } else {
+        contentEditableRef.current.innerHTML = "";
+      }
+    }
+  }, [showBlogEditor, editingBlog]);
 
   // Handle delete blog
   const handleDeleteBlog = async (blogId, imageUrl) => {
@@ -321,6 +631,8 @@ const BlogManagement = ({ user, userProfile }) => {
     setPreviewMode(false);
     setImageFile(null);
     setImagePreview("");
+    setUndoStack([]);
+    setRedoStack([]);
   };
 
   // Handle add tag
@@ -340,14 +652,6 @@ const BlogManagement = ({ user, userProfile }) => {
       ...blogForm,
       tags: blogForm.tags.filter((tag) => tag !== tagToRemove),
     });
-  };
-
-  // Calculate read time
-  const calculateReadTime = (content) => {
-    const wordsPerMinute = 200;
-    const words = content.split(/\s+/).length;
-    const minutes = Math.ceil(words / wordsPerMinute);
-    return `${minutes} min read`;
   };
 
   // Handle publish toggle
@@ -519,7 +823,7 @@ const BlogManagement = ({ user, userProfile }) => {
       {/* Blog Editor Modal */}
       {showBlogEditor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-5xl my-8">
+          <div className="bg-white rounded-2xl w-full max-w-6xl my-8">
             <div className="sticky top-0 bg-white border-b px-6 py-4 rounded-t-2xl">
               <div className="flex justify-between items-center">
                 <h3 className="text-2xl font-bold">
@@ -666,112 +970,303 @@ const BlogManagement = ({ user, userProfile }) => {
                     </div>
                   </div>
 
-                  {/* Content */}
+                  {/* Rich Text Editor */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Content *
+                      Content * (Rich Text Editor)
                     </label>
                     <div className="border rounded-lg">
-                      <div className="flex items-center gap-2 p-2 border-b bg-gray-50">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const selection = window.getSelection().toString();
-                            if (selection) {
-                              setBlogForm({
-                                ...blogForm,
-                                content: blogForm.content.replace(
-                                  selection,
-                                  `**${selection}**`
-                                ),
-                              });
+                      {/* Toolbar */}
+                      <div className="border-b bg-gray-50 p-2">
+                        {/* First Row - Text Formatting */}
+                        <div className="flex flex-wrap items-center gap-1 mb-2">
+                          <button
+                            type="button"
+                            onClick={handleUndo}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Undo"
+                          >
+                            <Undo size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRedo}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Redo"
+                          >
+                            <Redo size={16} />
+                          </button>
+                          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                          <select
+                            value={selectedFontFamily}
+                            onChange={(e) => changeFontFamily(e.target.value)}
+                            className="px-2 py-1 border rounded text-sm w-32"
+                            title="Font Family"
+                          >
+                            {fontFamilies.map((font) => (
+                              <option
+                                key={font}
+                                value={font}
+                                style={{ fontFamily: font }}
+                              >
+                                {font}
+                              </option>
+                            ))}
+                          </select>
+
+                          <select
+                            value={selectedFontSize}
+                            onChange={(e) => changeFontSize(e.target.value)}
+                            className="px-2 py-1 border rounded text-sm w-20"
+                            title="Font Size"
+                          >
+                            {fontSizes.map((size) => (
+                              <option key={size} value={size}>
+                                {size}
+                              </option>
+                            ))}
+                          </select>
+
+                          <div
+                            className="line-spacing-indicator"
+                            data-tooltip={`Line Spacing: ${
+                              lineSpacings.find((s) => s.value === lineHeight)
+                                ?.label || lineHeight
+                            }`}
+                          >
+                            <div className="flex items-center border rounded px-1 hover:bg-gray-50">
+                              <AlignJustify
+                                size={14}
+                                className="text-gray-600 mr-1"
+                              />
+                              <select
+                                value={lineHeight}
+                                onChange={(e) =>
+                                  changeLineHeight(e.target.value)
+                                }
+                                className="py-1 text-sm bg-transparent focus:outline-none cursor-pointer"
+                                title="Line Spacing"
+                              >
+                                {lineSpacings.map((spacing) => (
+                                  <option
+                                    key={spacing.value}
+                                    value={spacing.value}
+                                  >
+                                    {spacing.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                          <button
+                            type="button"
+                            onClick={() => execCommand("bold")}
+                            className="p-2 hover:bg-gray-200 rounded font-bold"
+                            title="Bold"
+                          >
+                            <Bold size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => execCommand("italic")}
+                            className="p-2 hover:bg-gray-200 rounded italic"
+                            title="Italic"
+                          >
+                            <Italic size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => execCommand("underline")}
+                            className="p-2 hover:bg-gray-200 rounded underline"
+                            title="Underline"
+                          >
+                            <Underline size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => execCommand("strikeThrough")}
+                            className="p-2 hover:bg-gray-200 rounded line-through"
+                            title="Strikethrough"
+                          >
+                            <Strikethrough size={16} />
+                          </button>
+
+                          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                          <div className="relative">
+                            <input
+                              type="color"
+                              value={textColor}
+                              onChange={(e) => changeTextColor(e.target.value)}
+                              className="absolute opacity-0 w-8 h-8"
+                            />
+                            <button
+                              type="button"
+                              className="p-2 hover:bg-gray-200 rounded"
+                              title="Text Color"
+                            >
+                              <Type size={16} style={{ color: textColor }} />
+                            </button>
+                          </div>
+
+                          <div className="relative">
+                            <input
+                              type="color"
+                              value={highlightColor}
+                              onChange={(e) =>
+                                changeHighlightColor(e.target.value)
+                              }
+                              className="absolute opacity-0 w-8 h-8"
+                            />
+                            <button
+                              type="button"
+                              className="p-2 hover:bg-gray-200 rounded"
+                              title="Highlight Color"
+                            >
+                              <Highlighter
+                                size={16}
+                                style={{ color: highlightColor }}
+                              />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Second Row - Headings and Lists */}
+                        <div className="flex flex-wrap items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => insertHeading(1)}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Heading 1"
+                          >
+                            <Heading1 size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => insertHeading(2)}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Heading 2"
+                          >
+                            <Heading2 size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => insertHeading(3)}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Heading 3"
+                          >
+                            <Heading3 size={16} />
+                          </button>
+
+                          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                          <button
+                            type="button"
+                            onClick={() => execCommand("insertUnorderedList")}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Bullet List"
+                          >
+                            <List size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => execCommand("insertOrderedList")}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Numbered List"
+                          >
+                            <ListOrdered size={16} />
+                          </button>
+
+                          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                          <button
+                            type="button"
+                            onClick={() => execCommand("justifyLeft")}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Align Left"
+                          >
+                            <AlignLeft size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => execCommand("justifyCenter")}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Align Center"
+                          >
+                            <AlignCenter size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => execCommand("justifyRight")}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Align Right"
+                          >
+                            <AlignRight size={16} />
+                          </button>
+
+                          <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              execCommand("formatBlock", "blockquote")
                             }
-                          }}
-                          className="p-2 hover:bg-gray-200 rounded"
-                          title="Bold"
-                        >
-                          <Bold size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const selection = window.getSelection().toString();
-                            if (selection) {
-                              setBlogForm({
-                                ...blogForm,
-                                content: blogForm.content.replace(
-                                  selection,
-                                  `*${selection}*`
-                                ),
-                              });
-                            }
-                          }}
-                          className="p-2 hover:bg-gray-200 rounded"
-                          title="Italic"
-                        >
-                          <Italic size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setBlogForm({
-                              ...blogForm,
-                              content: blogForm.content + "\n\n- List item",
-                            });
-                          }}
-                          className="p-2 hover:bg-gray-200 rounded"
-                          title="List"
-                        >
-                          <List size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setBlogForm({
-                              ...blogForm,
-                              content: blogForm.content + "\n\n> Quote",
-                            });
-                          }}
-                          className="p-2 hover:bg-gray-200 rounded"
-                          title="Quote"
-                        >
-                          <Quote size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const url = prompt("Enter URL:");
-                            const text = prompt("Enter link text:");
-                            if (url && text) {
-                              setBlogForm({
-                                ...blogForm,
-                                content:
-                                  blogForm.content + ` [${text}](${url})`,
-                              });
-                            }
-                          }}
-                          className="p-2 hover:bg-gray-200 rounded"
-                          title="Link"
-                        >
-                          <Link size={16} />
-                        </button>
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Quote"
+                          >
+                            <Quote size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => execCommand("formatBlock", "pre")}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Code Block"
+                          >
+                            <Code size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={insertLink}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Insert Link"
+                          >
+                            <Link size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={insertImage}
+                            className="p-2 hover:bg-gray-200 rounded"
+                            title="Insert Image"
+                          >
+                            <ImageIcon size={16} />
+                          </button>
+                        </div>
                       </div>
-                      <textarea
-                        value={blogForm.content}
-                        onChange={(e) => {
-                          setBlogForm({
-                            ...blogForm,
-                            content: e.target.value,
-                            readTime: calculateReadTime(e.target.value),
-                          });
+
+                      {/* Content Editable Area */}
+                      <style
+                        dangerouslySetInnerHTML={{ __html: editorStyles }}
+                      />
+                      <div
+                        ref={contentEditableRef}
+                        contentEditable
+                        onInput={handleContentChange}
+                        onKeyDown={saveToUndoStack}
+                        className="editor-content w-full px-4 py-3 min-h-[400px] focus:outline-none"
+                        style={{
+                          fontFamily: selectedFontFamily,
+                          lineHeight: lineHeight,
                         }}
-                        className="w-full px-4 py-2 focus:outline-none min-h-[300px]"
-                        placeholder="Write your blog content here... (Supports Markdown)"
+                        placeholder="Start typing your blog content here..."
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Supports Markdown formatting. Estimated read time:{" "}
-                      {blogForm.readTime}
+                      Rich text editor with full formatting capabilities.
+                      Estimated read time: {blogForm.readTime}
                     </p>
                   </div>
 
@@ -865,7 +1360,11 @@ const BlogManagement = ({ user, userProfile }) => {
                   <p className="text-lg text-gray-600 mb-6">
                     {blogForm.excerpt}
                   </p>
-                  <div className="whitespace-pre-wrap">{blogForm.content}</div>
+                  <style dangerouslySetInnerHTML={{ __html: editorStyles }} />
+                  <div
+                    className="editor-content prose max-w-none"
+                    dangerouslySetInnerHTML={{ __html: blogForm.content }}
+                  />
                   {blogForm.tags.length > 0 && (
                     <div className="flex gap-2 mt-6 flex-wrap">
                       {blogForm.tags.map((tag, index) => (
