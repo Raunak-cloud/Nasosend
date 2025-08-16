@@ -6,6 +6,7 @@ import GlobalNavigation from "@/components/GlobalNavigation";
 import Footer from "@/components/Footer";
 import AuthWrapper from "@/components/AuthWrapper";
 import VisitorTracker from "@/components/VisitorTracker";
+import GlobalLiveChat from "@/components/GlobalLiveChat";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({ children }) {
             <GlobalNavigation />
             <main className="min-h-screen bg-gray-50">{children}</main>
             <Footer />
+            <GlobalLiveChat />
           </AuthWrapper>
         </AuthContextProvider>
       </body>

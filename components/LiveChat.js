@@ -88,6 +88,39 @@ const LiveChat = ({ userId, userName, userEmail }) => {
 
   const emojis = ["😊", "😂", "❤️", "👍", "👎", "🙏", "🎉", "😢", "😡", "🤔"];
 
+  // Listen for custom event to open chat
+  useEffect(() => {
+    const handleOpenChat = () => {
+      console.log("LiveChat: openLiveChat event received");
+      setIsOpen(true);
+      localStorage.setItem("liveChatOpen", "true");
+    };
+
+    // Add event listener
+    window.addEventListener("openLiveChat", handleOpenChat);
+    console.log("LiveChat: Event listener added");
+
+    // Check localStorage on mount
+    const checkStorage = () => {
+      const wasOpen = localStorage.getItem("liveChatOpen");
+      console.log("LiveChat: Checking localStorage, wasOpen:", wasOpen);
+      if (wasOpen === "true") {
+        setIsOpen(true);
+      }
+    };
+
+    // Check immediately
+    checkStorage();
+
+    // Also check after a small delay (for hydration issues)
+    setTimeout(checkStorage, 100);
+
+    return () => {
+      window.removeEventListener("openLiveChat", handleOpenChat);
+      console.log("LiveChat: Event listener removed");
+    };
+  }, []);
+
   // Initialize or restore chat session
   const initializeChat = useCallback(async () => {
     if (!userId) return;
@@ -200,7 +233,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
             (agentDoc) => {
               if (agentDoc.exists()) {
                 setSupportAgent(agentDoc.data());
-                playNotificationSound();
               }
             }
           );
@@ -435,14 +467,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
     [sessionId]
   );
 
-  // Stop voice recording
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  }, [isRecording]);
-
   // Handle emoji selection
   const handleEmojiSelect = useCallback((emoji) => {
     setCurrentMessage((prev) => prev + emoji);
@@ -491,6 +515,9 @@ const LiveChat = ({ userId, userName, userEmail }) => {
 
   // Close chat
   const closeChat = useCallback(async () => {
+    // Clear localStorage
+    localStorage.removeItem("liveChatOpen");
+
     if (sessionId && chatSession?.status === "active") {
       // Show rating modal
       setShowRating(true);
@@ -551,7 +578,10 @@ const LiveChat = ({ userId, userName, userEmail }) => {
     <>
       {/* Chat Toggle Button */}
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true);
+          localStorage.setItem("liveChatOpen", "true");
+        }}
         className={`fixed bottom-4 right-4 w-14 h-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-40 ${
           unreadCount > 0 ? "animate-pulse" : ""
         } bg-gradient-to-r from-blue-600 to-green-600 text-white`}

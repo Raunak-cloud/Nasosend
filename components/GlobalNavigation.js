@@ -1,4 +1,4 @@
-// GlobalNavigation.js
+// components/GlobalNavigation.js
 
 "use client";
 

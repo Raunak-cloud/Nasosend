@@ -258,9 +258,7 @@ const SupportChatDashboard = ({ agentId, agentProfile }) => {
         await addDoc(
           collection(db, "chatSessions", queueItem.sessionId, "messages"),
           {
-            text: `Hello ${queueItem.session.customerName}! I'm ${
-              agentProfile.name
-            } from ${
+            text: `Hello ${queueItem.session.customerName}! I'm Raunak from ${
               agentProfile.department || "Support"
             }. How can I help you today?`,
             senderId: agentId,

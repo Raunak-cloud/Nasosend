@@ -9,7 +9,6 @@ import {
   Clock,
   Eye,
   ArrowLeft,
-  User,
   Tag,
   Share2,
   BookOpen,
@@ -37,7 +36,7 @@ const BlogDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Blog content styles to match the editor
+  // Blog content styles to match the editor EXACTLY
   const blogContentStyles = `
     .blog-content ul {
       list-style-type: disc !important;
@@ -504,10 +503,6 @@ const BlogDetailPage = () => {
           <div className="flex flex-wrap items-center justify-between border-t border-b py-4">
             <div className="flex items-center gap-4 text-sm text-gray-500">
               <span className="flex items-center">
-                <User className="w-4 h-4 mr-1.5" />
-                {post.authorName || "Nasosend Team"}
-              </span>
-              <span className="flex items-center">
                 <Calendar className="w-4 h-4 mr-1.5" />
                 {post.date}
               </span>
@@ -535,26 +530,6 @@ const BlogDetailPage = () => {
           className="blog-content prose prose-lg max-w-none mb-12"
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
-
-        {/* Author box */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-12">
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-              {post.authorName ? post.authorName[0].toUpperCase() : "N"}
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-gray-900 mb-1">About the Author</h3>
-              <p className="text-gray-700 mb-2">
-                <strong>{post.authorName || "Nasosend Team"}</strong>
-              </p>
-              <p className="text-gray-600 text-sm">
-                Part of the Nasosend support team, dedicated to providing
-                helpful content and guides for our community of travelers and
-                senders.
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* Related posts */}
         {relatedPosts.length > 0 && (

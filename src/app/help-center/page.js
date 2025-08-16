@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import LiveChat from "@/components/LiveChat";
 import {
   ArrowLeft,
   Mail,
@@ -33,7 +32,6 @@ const HelpCenterPage = () => {
   const [isChatAvailable, setIsChatAvailable] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [emailCopied, setEmailCopied] = useState(false);
-  const [showLiveChat, setShowLiveChat] = useState(false);
 
   const colors = {
     primaryRed: "#DC143C",
@@ -59,7 +57,7 @@ const HelpCenterPage = () => {
         now.toLocaleString("en-US", { timeZone: "Australia/Sydney" })
       );
       const hours = aedtTime.getHours();
-      setIsChatAvailable(hours >= 9 && hours < 23);
+      setIsChatAvailable(hours >= 9 && hours < 22); // Changed to 22 (10 PM)
       setCurrentTime(aedtTime);
     };
 
@@ -68,6 +66,29 @@ const HelpCenterPage = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Open live chat directly
+  const handleOpenChat = () => {
+    console.log("handleOpenChat called, user:", user ? "exists" : "null");
+
+    if (!user) {
+      console.log("No user, redirecting to login");
+      router.push("/login");
+      return;
+    }
+
+    // Dispatch a custom event to open the chat
+    console.log("Dispatching openLiveChat event");
+    window.dispatchEvent(new CustomEvent("openLiveChat"));
+
+    // Also try setting localStorage directly as backup
+    localStorage.setItem("liveChatOpen", "true");
+
+    // Force a small delay and re-dispatch to ensure it's caught
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("openLiveChat"));
+    }, 100);
+  };
 
   // FAQ Categories
   const faqCategories = [
@@ -82,7 +103,7 @@ const HelpCenterPage = () => {
     { id: "technical", name: "Technical Issues", icon: Settings },
   ];
 
-  // FAQ Items
+  // FAQ Items (keeping the same as before)
   const faqItems = [
     {
       id: 1,
@@ -138,7 +159,7 @@ const HelpCenterPage = () => {
       category: "account",
       question: "I can't access my account. What should I do?",
       answer:
-        "If you're having trouble accessing your account:\n\n1. Try resetting your password:\n   • Click 'Forgot Password' on the login page\n   • Enter your registered email\n   • Check your email for reset instructions\n\n2. Check if your account is verified:\n   • Unverified accounts have limited access\n   • Complete verification in your profile settings\n\n3. Clear your browser cache and cookies\n\n4. Try a different browser or device\n\n5. If issues persist, contact support:\n   • Email: support@nasosend.com\n   • Live chat (9 AM - 11 PM AEDT)\n   • Include your registered email address",
+        "If you're having trouble accessing your account:\n\n1. Try resetting your password:\n   • Click 'Forgot Password' on the login page\n   • Enter your registered email\n   • Check your email for reset instructions\n\n2. Check if your account is verified:\n   • Unverified accounts have limited access\n   • Complete verification in your profile settings\n\n3. Clear your browser cache and cookies\n\n4. Try a different browser or device\n\n5. If issues persist, contact support:\n   • Email: support@nasosend.com\n   • Live chat (9 AM - 10 PM AEDT)\n   • Include your registered email address",
     },
     {
       id: 9,
@@ -261,9 +282,9 @@ const HelpCenterPage = () => {
           {/* Live Chat */}
           <div
             className={`bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow ${
-              isChatAvailable && user ? "cursor-pointer" : ""
+              isChatAvailable ? "cursor-pointer" : ""
             }`}
-            onClick={() => isChatAvailable && user && setShowLiveChat(true)}
+            onClick={isChatAvailable ? handleOpenChat : undefined}
           >
             <div className="flex items-start space-x-4">
               <div
@@ -410,17 +431,6 @@ const HelpCenterPage = () => {
           </div>
         </div>
       </div>
-
-      {/* Live Chat Component */}
-      {user && showLiveChat && (
-        <LiveChat
-          userId={user.uid}
-          userName={
-            userProfile?.displayName || user.email?.split("@")[0] || "User"
-          }
-          userEmail={user.email || ""}
-        />
-      )}
     </div>
   );
 };

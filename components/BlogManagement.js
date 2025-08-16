@@ -58,68 +58,145 @@ import {
 } from "lucide-react";
 
 const BlogManagement = ({ user, userProfile }) => {
-  // Editor Styles
+  // Editor Styles - MATCHING blogs/[slug]/page.js EXACTLY
   const editorStyles = `
     .editor-content ul {
       list-style-type: disc !important;
       padding-left: 2rem !important;
-      margin: 0.5rem 0 !important;
+      margin: 1rem 0 !important;
     }
     .editor-content ol {
       list-style-type: decimal !important;
       padding-left: 2rem !important;
-      margin: 0.5rem 0 !important;
+      margin: 1rem 0 !important;
     }
     .editor-content ul li,
     .editor-content ol li {
       display: list-item !important;
-      margin: 0.25rem 0 !important;
+      margin: 0.5rem 0 !important;
       list-style-position: outside !important;
+      line-height: 1.7;
     }
     .editor-content ul ul {
       list-style-type: circle !important;
+      margin-top: 0.5rem !important;
     }
     .editor-content ul ul ul {
       list-style-type: square !important;
     }
     .editor-content blockquote {
-      border-left: 4px solid #e5e7eb;
-      padding-left: 1rem;
-      margin: 1rem 0;
+      border-left: 4px solid #3b82f6;
+      padding-left: 1.5rem;
+      margin: 1.5rem 0;
       font-style: italic;
-      color: #6b7280;
+      color: #4b5563;
+      background-color: #f9fafb;
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+      padding-right: 1rem;
+      border-radius: 0.375rem;
     }
     .editor-content pre {
-      background-color: #f3f4f6;
-      padding: 1rem;
-      border-radius: 0.375rem;
+      background-color: #1f2937;
+      color: #f3f4f6;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
       overflow-x: auto;
-      font-family: monospace;
+      font-family: 'Courier New', monospace;
+      margin: 1.5rem 0;
+      line-height: 1.5;
     }
     .editor-content h1 {
-      font-size: 2rem;
-      font-weight: bold;
-      margin: 1rem 0;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 2rem 0 1rem 0;
+      color: #111827;
+      line-height: 1.2;
     }
     .editor-content h2 {
-      font-size: 1.5rem;
-      font-weight: bold;
-      margin: 0.75rem 0;
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 1.75rem 0 0.875rem 0;
+      color: #1f2937;
+      line-height: 1.3;
     }
     .editor-content h3 {
-      font-size: 1.25rem;
-      font-weight: bold;
-      margin: 0.5rem 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.75rem 0;
+      color: #374151;
+      line-height: 1.4;
+    }
+    .editor-content p {
+      margin: 1rem 0;
+      line-height: 1.8;
+      color: #374151;
     }
     .editor-content a {
       color: #3b82f6;
       text-decoration: underline;
+      transition: color 0.2s;
     }
     .editor-content a:hover {
       color: #2563eb;
     }
-    .editor-content p {
-      margin-bottom: 0.5rem;
+    .editor-content strong {
+      font-weight: 600;
+      color: #111827;
+    }
+    .editor-content em {
+      font-style: italic;
+    }
+    .editor-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 0.5rem;
+      margin: 1.5rem auto;
+      display: block;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .editor-content hr {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 2rem 0;
+    }
+    .editor-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+    }
+    .editor-content th {
+      background-color: #f3f4f6;
+      padding: 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      border: 1px solid #e5e7eb;
+    }
+    .editor-content td {
+      padding: 0.75rem;
+      border: 1px solid #e5e7eb;
+    }
+    .editor-content code {
+      background-color: #f3f4f6;
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875em;
+      color: #dc2626;
+    }
+    .editor-content s {
+      text-decoration: line-through;
+      opacity: 0.75;
+    }
+    .editor-content u {
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 2px;
+    }
+    .editor-content mark {
+      background-color: #fef3c7;
+      padding: 0.125rem 0.25rem;
+      border-radius: 0.125rem;
     }
     .line-spacing-indicator {
       position: relative;
@@ -344,30 +421,25 @@ const BlogManagement = ({ user, userProfile }) => {
   const changeLineHeight = (spacing) => {
     setLineHeight(spacing);
     if (contentEditableRef.current) {
-      // Apply line height to selected text or entire content
       const selection = window.getSelection();
       if (selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
 
         if (!range.collapsed) {
-          // Apply to selected text
           const span = document.createElement("span");
           span.style.lineHeight = spacing;
 
           try {
             range.surroundContents(span);
           } catch (e) {
-            // If surroundContents fails, use alternative method
             const contents = range.extractContents();
             span.appendChild(contents);
             range.insertNode(span);
           }
         } else {
-          // Apply to the entire paragraph or content
           contentEditableRef.current.style.lineHeight = spacing;
         }
       } else {
-        // Apply to entire content if no selection
         contentEditableRef.current.style.lineHeight = spacing;
       }
 
@@ -408,13 +480,11 @@ const BlogManagement = ({ user, userProfile }) => {
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith("image/")) {
         showNotification("Please select an image file", "error");
         return;
       }
 
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         showNotification("Image size should be less than 5MB", "error");
         return;
@@ -422,7 +492,6 @@ const BlogManagement = ({ user, userProfile }) => {
 
       setImageFile(file);
 
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -437,20 +506,14 @@ const BlogManagement = ({ user, userProfile }) => {
 
     setUploadingImage(true);
     try {
-      // Create a unique filename
       const timestamp = Date.now();
       const filename = `blog-images/${timestamp}-${imageFile.name.replace(
         /[^a-zA-Z0-9.-]/g,
         "_"
       )}`;
       const storageRef = ref(storage, filename);
-
-      // Upload the file
       const snapshot = await uploadBytes(storageRef, imageFile);
-
-      // Get the download URL
       const downloadURL = await getDownloadURL(snapshot.ref);
-
       return downloadURL;
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -466,7 +529,6 @@ const BlogManagement = ({ user, userProfile }) => {
     if (!imageUrl || !imageUrl.includes("firebase")) return;
 
     try {
-      // Extract the path from the URL
       const decodedUrl = decodeURIComponent(imageUrl);
       const startIndex = decodedUrl.indexOf("/blog-images/");
       const endIndex = decodedUrl.indexOf("?");
@@ -530,12 +592,10 @@ const BlogManagement = ({ user, userProfile }) => {
       return;
     }
     try {
-      // Delete the image from storage if it exists
       if (imageUrl) {
         await deleteImageFromStorage(imageUrl);
       }
 
-      // Delete the blog post document
       await deleteDoc(doc(db, "blogPosts", blogId));
       await fetchBlogPosts();
       showNotification("Blog post deleted successfully!", "success");
@@ -554,12 +614,10 @@ const BlogManagement = ({ user, userProfile }) => {
 
     setSaving(true);
     try {
-      // Upload image if a new one is selected
       let imageUrl = blogForm.image;
       if (imageFile) {
         imageUrl = await uploadImage();
 
-        // Delete old image if updating
         if (
           editingBlog &&
           editingBlog.image &&
@@ -572,9 +630,6 @@ const BlogManagement = ({ user, userProfile }) => {
       const blogData = {
         ...blogForm,
         image: imageUrl,
-        authorId: user.uid,
-        authorName: userProfile.displayName || user.email.split("@")[0],
-        authorEmail: user.email,
         updatedAt: serverTimestamp(),
         views: editingBlog ? editingBlog.views : 0,
         slug:
@@ -758,7 +813,6 @@ const BlogManagement = ({ user, userProfile }) => {
                       <Eye className="w-3 h-3 mr-1" />
                       {post.views || 0} views
                     </span>
-                    <span>By {post.authorName}</span>
                   </div>
                   {post.tags && post.tags.length > 0 && (
                     <div className="flex gap-1 mt-2 flex-wrap">
@@ -820,7 +874,7 @@ const BlogManagement = ({ user, userProfile }) => {
         )}
       </div>
 
-      {/* Blog Editor Modal */}
+      {/* Blog Editor Modal - Continue with same editor code... */}
       {showBlogEditor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-6xl my-8">
@@ -976,7 +1030,7 @@ const BlogManagement = ({ user, userProfile }) => {
                       Content * (Rich Text Editor)
                     </label>
                     <div className="border rounded-lg">
-                      {/* Toolbar */}
+                      {/* Toolbar - keeping same as before */}
                       <div className="border-b bg-gray-50 p-2">
                         {/* First Row - Text Formatting */}
                         <div className="flex flex-wrap items-center gap-1 mb-2">
