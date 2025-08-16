@@ -1,5 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, increment } from "firebase/firestore";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -19,10 +22,13 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-// Initialize Stripe
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-);
+// Initialize Stripe - Add null check
+let stripePromise = null;
+if (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+  stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+} else {
+  console.error("Stripe publishable key is not set!");
+}
 
 // Card Element Options
 const cardElementOptions = {
@@ -40,30 +46,37 @@ const cardElementOptions = {
       iconColor: "#9e2146",
     },
   },
-  hidePostalCode: false,
+  hidePostalCode: true, // Hide postal code field
 };
 
 // Payment Form Component
-const PaymentForm = ({
-  selectedPackage,
-  onSuccess,
-  onBack,
-  userEmail,
-  userId,
-}) => {
+const PaymentForm = ({ selectedPackage, onSuccess, onBack }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const { user, userProfile } = useAuth();
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [cardholderName, setCardholderName] = useState("");
-  const [email, setEmail] = useState(userEmail || "");
   const [saveCard, setSaveCard] = useState(false);
+
+  // Get email from user object
+  const userEmail = user?.email || "";
+
+  // Check Stripe initialization
+  useEffect(() => {
+    if (!stripe) {
+      console.log("Stripe is still loading...");
+    } else {
+      console.log("Stripe loaded successfully");
+    }
+  }, [stripe]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!stripe || !elements) {
+      setError("Stripe is still loading. Please wait...");
       return;
     }
 
@@ -71,40 +84,69 @@ const PaymentForm = ({
     setError(null);
 
     try {
+      // Log the request data for debugging
+      const requestData = {
+        packageId: selectedPackage.id,
+        tokens: selectedPackage.tokens,
+        amount: selectedPackage.price * 100, // Convert to cents
+        currency: "aud",
+        userId: user?.uid || "test-user", // Get userId from auth
+        userEmail: userEmail || "test@example.com", // Fallback email
+        saveCard: saveCard,
+      };
+
+      console.log("Creating payment intent with:", requestData);
+
       // Create payment intent on your server
       const response = await fetch("/api/create-token-payment", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          packageId: selectedPackage.id,
-          tokens: selectedPackage.tokens,
-          amount: selectedPackage.price * 100, // Convert to cents
-          currency: "aud",
-          userId: userId,
-          userEmail: email,
-          saveCard: saveCard,
-        }),
+        body: JSON.stringify(requestData),
       });
 
-      const { clientSecret, error: apiError } = await response.json();
+      // Check if response is ok
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Server response error:", errorText);
+        throw new Error(`Server error: ${response.status}`);
+      }
 
-      if (apiError) {
-        throw new Error(apiError);
+      const responseData = await response.json();
+      console.log("Server response:", responseData);
+
+      if (responseData.error) {
+        throw new Error(responseData.error);
+      }
+
+      if (!responseData.clientSecret) {
+        throw new Error("No client secret received from server");
+      }
+
+      // Get card element
+      const cardElement = elements.getElement(CardElement);
+      if (!cardElement) {
+        throw new Error("Card element not found");
       }
 
       // Confirm the payment
-      const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: elements.getElement(CardElement),
-          billing_details: {
-            name: cardholderName,
-            email: email,
+      console.log("Confirming payment...");
+      const result = await stripe.confirmCardPayment(
+        responseData.clientSecret,
+        {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: cardholderName,
+              email: userEmail,
+            },
           },
-        },
-        setup_future_usage: saveCard ? "off_session" : null,
-      });
+          setup_future_usage: saveCard ? "off_session" : null,
+        }
+      );
+
+      console.log("Payment result:", result);
 
       if (result.error) {
         setError(result.error.message);
@@ -112,6 +154,23 @@ const PaymentForm = ({
       } else {
         if (result.paymentIntent.status === "succeeded") {
           setPaymentSuccess(true);
+
+          // Update user's tokens in Firebase
+          try {
+            const userRef = doc(db, "users", user.uid);
+            await updateDoc(userRef, {
+              tokens: increment(selectedPackage.tokens),
+              lastTokenPurchase: new Date(),
+            });
+            console.log(
+              `Successfully added ${selectedPackage.tokens} tokens to user profile`
+            );
+          } catch (updateError) {
+            console.error("Error updating user tokens:", updateError);
+            // Payment succeeded but token update failed - handle this case
+            // The webhook will also update tokens as a backup
+          }
+
           // Call the success callback after showing success message
           setTimeout(() => {
             onSuccess(selectedPackage.tokens, selectedPackage.price);
@@ -126,13 +185,13 @@ const PaymentForm = ({
   };
 
   const isFormValid = () => {
-    return cardholderName.length > 0 && email.length > 0 && !error;
+    return cardholderName.length > 0 && !error;
   };
 
   if (paymentSuccess) {
     return (
       <div className="text-center py-12">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-scale-in">
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <Check className="w-10 h-10 text-green-600" />
         </div>
         <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -216,38 +275,34 @@ const PaymentForm = ({
             </div>
           </div>
 
-          {/* Trust Badges */}
-          <div className="mt-6 space-y-3">
-            <div className="flex items-center text-sm text-gray-600">
-              <Check className="w-4 h-4 mr-2 text-green-500" />
-              SSL encrypted payment
+          {/* User Info Display */}
+          {userEmail && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+              <p className="text-xs text-gray-700 mb-1">Purchasing as:</p>
+              <p className="text-sm font-medium text-gray-900">{userEmail}</p>
             </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Check className="w-4 h-4 mr-2 text-green-500" />
-              PCI DSS compliant
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Check className="w-4 h-4 mr-2 text-green-500" />
-              Money-back guarantee
-            </div>
+          )}
+
+          {/* Test Mode Notice */}
+          <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <p className="text-xs text-yellow-800 font-medium mb-2">
+              TEST MODE - Use test card numbers:
+            </p>
+            <ul className="text-xs text-yellow-700 space-y-1">
+              <li>• Success: 4242 4242 4242 4242</li>
+              <li>• Decline: 4000 0000 0000 0002</li>
+              <li>• Any future expiry & any 3-digit CVV</li>
+            </ul>
           </div>
         </div>
 
         {/* Payment Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="your@email.com"
-              required
-            />
-          </div>
+          {!stripe && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
+              <p className="text-sm">Loading payment system...</p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -268,11 +323,20 @@ const PaymentForm = ({
               Card Information
             </label>
             <div className="border border-gray-300 rounded-lg p-4 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500">
-              <CardElement options={cardElementOptions} />
+              <CardElement
+                options={cardElementOptions}
+                onReady={(element) =>
+                  console.log("CardElement ready:", element)
+                }
+                onChange={(event) => {
+                  if (event.error) {
+                    setError(event.error.message);
+                  } else {
+                    setError(null);
+                  }
+                }}
+              />
             </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Test card: 4242 4242 4242 4242, any future date, any 3 digits
-            </p>
           </div>
 
           {/* Save Card Option */}
@@ -325,11 +389,6 @@ const PaymentForm = ({
               Privacy Policy.
             </p>
             <div className="flex items-center justify-center space-x-4">
-              <img
-                src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/stripe/stripe-original.svg"
-                alt="Stripe"
-                className="h-6"
-              />
               <span className="text-xs text-gray-400">Powered by Stripe</span>
             </div>
           </div>
@@ -343,13 +402,16 @@ const PaymentForm = ({
 const BuyTokens = ({
   isOpen,
   onClose,
-  currentTokens,
+  currentTokens = 0,
   onTokensPurchased,
-  userEmail,
-  userId,
 }) => {
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const { user } = useAuth();
+
+  // Get user data from auth
+  const userEmail = user?.email || "";
+  const userId = user?.uid || null;
 
   const tokenPackages = [
     {
@@ -394,6 +456,32 @@ const BuyTokens = ({
   };
 
   if (!isOpen) return null;
+
+  // Check if Stripe is configured
+  if (!stripePromise) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-2xl p-8 max-w-md">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              Payment System Not Configured
+            </h2>
+            <p className="text-gray-600 mb-4">
+              The payment system is not properly configured. Please contact
+              support.
+            </p>
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -547,37 +635,25 @@ const BuyTokens = ({
         ) : (
           // Payment Form wrapped in Stripe Elements
           <div className="p-8">
-            <Elements stripe={stripePromise}>
-              <PaymentForm
-                selectedPackage={selectedPackage}
-                onSuccess={handlePaymentSuccess}
-                onBack={handleBack}
-                userEmail={userEmail}
-                userId={userId}
-              />
-            </Elements>
+            {stripePromise ? (
+              <Elements stripe={stripePromise}>
+                <PaymentForm
+                  selectedPackage={selectedPackage}
+                  onSuccess={handlePaymentSuccess}
+                  onBack={handleBack}
+                  userEmail={userEmail}
+                  userId={userId}
+                />
+              </Elements>
+            ) : (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading payment system...</p>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes scale-in {
-          0% {
-            transform: scale(0);
-            opacity: 0;
-          }
-          50% {
-            transform: scale(1.1);
-          }
-          100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-        .animate-scale-in {
-          animation: scale-in 0.5s ease-out;
-        }
-      `}</style>
     </div>
   );
 };

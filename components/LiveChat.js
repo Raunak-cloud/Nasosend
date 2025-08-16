@@ -1,13 +1,7 @@
 // components/LiveChat.js
 "use client";
 
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { db, storage } from "@/lib/firebase";
 import {
@@ -40,7 +34,6 @@ import {
   Paperclip,
   Smile,
   RefreshCw,
-  Star,
   Image as ImageIcon,
   FileText,
 } from "lucide-react";
@@ -64,19 +57,14 @@ const LiveChat = ({ userId, userName, userEmail }) => {
   const [attachments, setAttachments] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-  const [showRating, setShowRating] = useState(false);
-  const [rating, setRating] = useState(0);
-  const [feedback, setFeedback] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isRecording, setIsRecording] = useState(false);
 
   // Refs
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+
   const unsubscribeMessagesRef = useRef(null);
   const unsubscribeSessionRef = useRef(null);
   const unsubscribeQueueRef = useRef(null);
@@ -474,45 +462,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
     inputRef.current?.focus();
   }, []);
 
-  // Submit rating and feedback
-  const submitRating = useCallback(async () => {
-    if (!sessionId || rating === 0) return;
-
-    try {
-      await updateDoc(doc(db, "chatSessions", sessionId), {
-        rating,
-        feedback: feedback.trim(),
-        status: "closed",
-        closedAt: serverTimestamp(),
-      });
-
-      // Update agent rating
-      if (chatSession?.agentId) {
-        const agentRef = doc(db, "supportAgents", chatSession.agentId);
-        const agentDoc = await getDoc(agentRef);
-
-        if (agentDoc.exists()) {
-          const agentData = agentDoc.data();
-          const currentAvg = agentData.rating?.average || 0;
-          const currentCount = agentData.rating?.count || 0;
-          const newAvg =
-            (currentAvg * currentCount + rating) / (currentCount + 1);
-
-          await updateDoc(agentRef, {
-            "rating.average": newAvg,
-            "rating.count": currentCount + 1,
-          });
-        }
-      }
-
-      setShowRating(false);
-      alert("Thank you for your feedback!");
-      closeChat();
-    } catch (error) {
-      console.error("Error submitting rating:", error);
-    }
-  }, [sessionId, rating, feedback, chatSession]);
-
   // Close chat
   const closeChat = useCallback(async () => {
     // Clear localStorage
@@ -520,7 +469,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
 
     if (sessionId && chatSession?.status === "active") {
       // Show rating modal
-      setShowRating(true);
     } else {
       // Clean up
       if (unsubscribeMessagesRef.current) unsubscribeMessagesRef.current();
@@ -945,61 +893,6 @@ const LiveChat = ({ userId, userName, userEmail }) => {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Rating Modal */}
-      {showRating && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4">Rate your experience</h3>
-
-            <div className="flex justify-center space-x-2 mb-4">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => setRating(star)}
-                  className="text-3xl transition-colors"
-                >
-                  <Star
-                    className={`w-8 h-8 ${
-                      star <= rating
-                        ? "text-yellow-400 fill-yellow-400"
-                        : "text-gray-300"
-                    }`}
-                  />
-                </button>
-              ))}
-            </div>
-
-            <textarea
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-              placeholder="Share your feedback (optional)"
-              className="w-full p-3 border rounded-lg mb-4"
-              rows={3}
-            />
-
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowRating(false)}
-                className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Skip
-              </button>
-              <button
-                onClick={submitRating}
-                disabled={rating === 0}
-                className={`flex-1 py-2 rounded-lg text-white ${
-                  rating > 0
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-gray-300 cursor-not-allowed"
-                }`}
-              >
-                Submit
-              </button>
-            </div>
           </div>
         </div>
       )}

@@ -17,6 +17,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 
 export async function POST(request) {
   try {
+    const body = await request.json();
     const {
       packageId,
       tokens,
@@ -25,15 +26,29 @@ export async function POST(request) {
       userId,
       userEmail,
       saveCard,
-    } = await request.json();
+    } = body;
+
+    console.log("Received payment request:", {
+      packageId,
+      tokens,
+      amount,
+      userId,
+      userEmail,
+    });
 
     // Validate the request
-    if (!packageId || !tokens || !amount || !userId || !userEmail) {
+    if (!packageId || !tokens || !amount || !userId) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        {
+          error:
+            "Missing required fields: packageId, tokens, amount, or userId",
+        },
         { status: 400 }
       );
     }
+
+    // Email is optional but recommended
+    const email = userEmail || `user_${userId}@nasosend.com`;
 
     // Validate amount (minimum 50 cents for Stripe)
     if (amount < 50) {
