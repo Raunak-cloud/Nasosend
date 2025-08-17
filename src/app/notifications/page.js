@@ -185,13 +185,6 @@ const NotificationPage = () => {
                       {formatTimestamp(notification.timestamp)}
                     </p>
                   </div>
-                  <button
-                    onClick={(e) => handleDeleteNotification(e, notification)}
-                    className="absolute top-2 right-2 p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
-                    aria-label="Delete notification"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
                 </div>
               );
             })}

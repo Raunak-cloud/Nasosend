@@ -177,15 +177,9 @@ export default function HomePage() {
               className="text-base sm:text-lg text-darkGray leading-relaxed"
               style={{ color: colors.darkGray }}
             >
-              Connect with verified travelers or earn money by delivering
-              packages.
-              <span
-                className="font-semibold text-primaryBlue block mt-2"
-                style={{ color: colors.primaryBlue }}
-              >
-                Safe, reliable, and community-driven shipping between Australia
-                and Nepal.
-              </span>
+              Nasosend is a crowdshipping platform that connects people wanting
+              to send items between Australia and Nepal with verified travelers
+              who have available luggage space.
             </p>
           </motion.div>
 

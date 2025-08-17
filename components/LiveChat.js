@@ -530,7 +530,7 @@ const LiveChat = ({ userId, userName, userEmail }) => {
           setIsOpen(true);
           localStorage.setItem("liveChatOpen", "true");
         }}
-        className={`fixed bottom-4 right-4 w-14 h-14 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-40 ${
+        className={`fixed bottom-4 right-4 w-12 h-12 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-40 ${
           unreadCount > 0 ? "animate-pulse" : ""
         } bg-gradient-to-r from-blue-600 to-green-600 text-white`}
         style={{ display: isOpen ? "none" : "flex" }}
@@ -550,8 +550,8 @@ const LiveChat = ({ userId, userName, userEmail }) => {
       {/* Chat Window */}
       {isOpen && (
         <div
-          className={`fixed bottom-4 right-4 z-50 transition-all duration-300 ${
-            isMinimized ? "w-80 h-16" : "w-96 h-[600px]"
+          className={`fixed bottom-0 right-0 z-50 transition-all duration-300 ${
+            isMinimized ? "w-5/5 h-16" : "w-5/5 h-[600px]"
           }`}
         >
           <div className="bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col h-full">
@@ -581,9 +581,7 @@ const LiveChat = ({ userId, userName, userEmail }) => {
                     )}
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold">
-                      {supportAgent ? supportAgent.name : "Nasosend Support"}
-                    </h3>
+                    <h3 className="font-semibold">Nasosend Support</h3>
                     <p className="text-xs text-blue-100">
                       {chatSession?.status === "waiting"
                         ? `Queue position: ${queuePosition} • Wait time: ~${estimatedWaitTime} min`
