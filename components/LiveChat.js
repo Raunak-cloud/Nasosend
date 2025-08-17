@@ -36,6 +36,7 @@ import {
   RefreshCw,
   Image as ImageIcon,
   FileText,
+  AlertCircle,
 } from "lucide-react";
 
 const LiveChat = ({ userId, userName, userEmail }) => {
@@ -59,6 +60,11 @@ const LiveChat = ({ userId, userName, userEmail }) => {
   const [showEmoji, setShowEmoji] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Business hours state
+  const [isWithinBusinessHours, setIsWithinBusinessHours] = useState(false);
+  const [nextOpenTime, setNextOpenTime] = useState("");
+  const [currentTime, setCurrentTime] = useState(new Date());
+
   // Refs
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -76,12 +82,81 @@ const LiveChat = ({ userId, userName, userEmail }) => {
 
   const emojis = ["😊", "😂", "❤️", "👍", "👎", "🙏", "🎉", "😢", "😡", "🤔"];
 
+  // Business hours configuration
+  const BUSINESS_HOURS = {
+    start: 9, // 9 AM
+    end: 22, // 10 PM
+    timezone: "Australia/Sydney", // AEDT/AEST
+  };
+
+  // Check if current time is within business hours
+  const checkBusinessHours = useCallback(() => {
+    const now = new Date();
+
+    // Convert to AEDT/AEST timezone
+    const sydneyTime = new Date(
+      now.toLocaleString("en-US", { timeZone: BUSINESS_HOURS.timezone })
+    );
+    const hours = sydneyTime.getHours();
+    const minutes = sydneyTime.getMinutes();
+    const currentTimeInMinutes = hours * 60 + minutes;
+
+    const startTimeInMinutes = BUSINESS_HOURS.start * 60;
+    const endTimeInMinutes = BUSINESS_HOURS.end * 60;
+
+    const isOpen =
+      currentTimeInMinutes >= startTimeInMinutes &&
+      currentTimeInMinutes < endTimeInMinutes;
+
+    setIsWithinBusinessHours(isOpen);
+    setCurrentTime(sydneyTime);
+
+    // Calculate next opening time
+    if (!isOpen) {
+      const nextOpen = new Date(sydneyTime);
+
+      if (currentTimeInMinutes < startTimeInMinutes) {
+        // Before opening hours today
+        nextOpen.setHours(BUSINESS_HOURS.start, 0, 0, 0);
+      } else {
+        // After closing hours, open tomorrow
+        nextOpen.setDate(nextOpen.getDate() + 1);
+        nextOpen.setHours(BUSINESS_HOURS.start, 0, 0, 0);
+      }
+
+      setNextOpenTime(
+        nextOpen.toLocaleString("en-US", {
+          timeZone: BUSINESS_HOURS.timezone,
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+          weekday: "short",
+        })
+      );
+    }
+
+    return isOpen;
+  }, []);
+
+  // Update business hours check every minute
+  useEffect(() => {
+    checkBusinessHours();
+    const interval = setInterval(checkBusinessHours, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [checkBusinessHours]);
+
   // Listen for custom event to open chat
   useEffect(() => {
     const handleOpenChat = () => {
       console.log("LiveChat: openLiveChat event received");
-      setIsOpen(true);
-      localStorage.setItem("liveChatOpen", "true");
+      if (checkBusinessHours()) {
+        setIsOpen(true);
+        localStorage.setItem("liveChatOpen", "true");
+      } else {
+        // Show offline message
+        setIsOpen(true);
+      }
     };
 
     // Add event listener
@@ -107,11 +182,11 @@ const LiveChat = ({ userId, userName, userEmail }) => {
       window.removeEventListener("openLiveChat", handleOpenChat);
       console.log("LiveChat: Event listener removed");
     };
-  }, []);
+  }, [checkBusinessHours]);
 
   // Initialize or restore chat session
   const initializeChat = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !isWithinBusinessHours) return;
 
     setConnectionStatus("connecting");
 
@@ -197,7 +272,7 @@ const LiveChat = ({ userId, userName, userEmail }) => {
       console.error("Error initializing chat:", error);
       setConnectionStatus("failed");
     }
-  }, [userId, userName, userEmail]);
+  }, [userId, userName, userEmail, isWithinBusinessHours]);
 
   // Subscribe to chat session updates
   useEffect(() => {
@@ -319,7 +394,7 @@ const LiveChat = ({ userId, userName, userEmail }) => {
 
   // Send message
   const sendMessage = useCallback(async () => {
-    if (!currentMessage.trim() || !sessionId) return;
+    if (!currentMessage.trim() || !sessionId || !isWithinBusinessHours) return;
 
     const messageText = currentMessage.trim();
     setCurrentMessage("");
@@ -355,11 +430,19 @@ const LiveChat = ({ userId, userName, userEmail }) => {
     } catch (error) {
       console.error("Error sending message:", error);
     }
-  }, [currentMessage, sessionId, userId, userName, attachments, chatSession]);
+  }, [
+    currentMessage,
+    sessionId,
+    userId,
+    userName,
+    attachments,
+    chatSession,
+    isWithinBusinessHours,
+  ]);
 
   // Handle typing indicator
   const handleTyping = useCallback(async () => {
-    if (!sessionId) return;
+    if (!sessionId || !isWithinBusinessHours) return;
 
     // Clear existing timeout
     if (typingTimeoutRef.current) {
@@ -378,7 +461,7 @@ const LiveChat = ({ userId, userName, userEmail }) => {
     typingTimeoutRef.current = setTimeout(() => {
       stopTyping();
     }, TYPING_TIMEOUT);
-  }, [sessionId, isTyping]);
+  }, [sessionId, isTyping, isWithinBusinessHours]);
 
   // Stop typing indicator
   const stopTyping = useCallback(async () => {
@@ -415,6 +498,8 @@ const LiveChat = ({ userId, userName, userEmail }) => {
   // Handle file upload
   const handleFileUpload = useCallback(
     async (event) => {
+      if (!isWithinBusinessHours) return;
+
       const files = Array.from(event.target.files);
 
       for (const file of files) {
@@ -452,15 +537,19 @@ const LiveChat = ({ userId, userName, userEmail }) => {
         }
       }
     },
-    [sessionId]
+    [sessionId, isWithinBusinessHours]
   );
 
   // Handle emoji selection
-  const handleEmojiSelect = useCallback((emoji) => {
-    setCurrentMessage((prev) => prev + emoji);
-    setShowEmoji(false);
-    inputRef.current?.focus();
-  }, []);
+  const handleEmojiSelect = useCallback(
+    (emoji) => {
+      if (!isWithinBusinessHours) return;
+      setCurrentMessage((prev) => prev + emoji);
+      setShowEmoji(false);
+      inputRef.current?.focus();
+    },
+    [isWithinBusinessHours]
+  );
 
   // Close chat
   const closeChat = useCallback(async () => {
@@ -500,10 +589,10 @@ const LiveChat = ({ userId, userName, userEmail }) => {
 
   // Initialize chat when opened
   useEffect(() => {
-    if (isOpen && !sessionId) {
+    if (isOpen && !sessionId && isWithinBusinessHours) {
       initializeChat();
     }
-  }, [isOpen, sessionId, initializeChat]);
+  }, [isOpen, sessionId, initializeChat, isWithinBusinessHours]);
 
   // Mark messages as read when chat is opened
   useEffect(() => {
@@ -522,26 +611,98 @@ const LiveChat = ({ userId, userName, userEmail }) => {
     };
   }, []);
 
+  // Offline Message Component
+  const OfflineMessage = () => (
+    <div className="flex-1 flex items-center justify-center p-6">
+      <div className="text-center max-w-sm">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Clock className="w-10 h-10 text-gray-400" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">
+          We're Currently Offline
+        </h3>
+        <p className="text-gray-600 mb-4">
+          Our support team is available from{" "}
+          <strong>9:00 AM to 10:00 PM AEDT</strong> every day.
+        </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <p className="text-sm text-blue-800">
+            <strong>Current time in Sydney:</strong>
+            <br />
+            {currentTime.toLocaleString("en-US", {
+              timeZone: BUSINESS_HOURS.timezone,
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+        </div>
+        <p className="text-sm text-gray-600">
+          We'll be back online <strong>{nextOpenTime}</strong>
+        </p>
+        <div className="mt-6 space-y-3">
+          <p className="text-sm text-gray-600">In the meantime, you can:</p>
+          <div className="text-left space-y-2 bg-gray-50 rounded-lg p-4">
+            <div className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              <span className="text-sm">Email us at support@nasosend.com</span>
+            </div>
+            <div className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              <span className="text-sm">
+                Check our Help Center for instant answers
+              </span>
+            </div>
+            <div className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              <span className="text-sm">
+                Leave us a message and we'll get back to you
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* Chat Toggle Button */}
       <button
         onClick={() => {
           setIsOpen(true);
-          localStorage.setItem("liveChatOpen", "true");
+          if (isWithinBusinessHours) {
+            localStorage.setItem("liveChatOpen", "true");
+          }
         }}
         className={`fixed bottom-4 right-4 w-12 h-12 rounded-full shadow-lg transition-all duration-300 hover:scale-110 z-40 ${
           unreadCount > 0 ? "animate-pulse" : ""
-        } bg-gradient-to-r from-blue-600 to-green-600 text-white`}
+        } ${
+          isWithinBusinessHours
+            ? "bg-gradient-to-r from-blue-600 to-green-600"
+            : "bg-gradient-to-r from-gray-400 to-gray-600"
+        } text-white`}
         style={{ display: isOpen ? "none" : "flex" }}
       >
         <div className="relative flex items-center justify-center w-full h-full">
-          <MessageCircle className="w-6 h-6" />
-          {unreadCount > 0 && (
+          {isWithinBusinessHours ? (
+            <MessageCircle className="w-6 h-6" />
+          ) : (
+            <Clock className="w-6 h-6" />
+          )}
+          {unreadCount > 0 && isWithinBusinessHours && (
             <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
               <span className="text-xs text-white font-bold">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
+            </div>
+          )}
+          {!isWithinBusinessHours && (
+            <div className="absolute -top-2 -right-2 bg-gray-700 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
+              Offline
             </div>
           )}
         </div>
@@ -556,11 +717,17 @@ const LiveChat = ({ userId, userName, userEmail }) => {
         >
           <div className="bg-white rounded-lg shadow-2xl border border-gray-200 flex flex-col h-full">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-4 rounded-t-lg">
+            <div
+              className={`${
+                isWithinBusinessHours
+                  ? "bg-gradient-to-r from-blue-600 to-green-600"
+                  : "bg-gradient-to-r from-gray-500 to-gray-700"
+              } text-white p-4 rounded-t-lg`}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="relative">
-                    {supportAgent ? (
+                    {isWithinBusinessHours && supportAgent ? (
                       <Image
                         src={
                           supportAgent.avatar ||
@@ -573,17 +740,24 @@ const LiveChat = ({ userId, userName, userEmail }) => {
                       />
                     ) : (
                       <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                        <MessageCircle className="w-5 h-5" />
+                        {isWithinBusinessHours ? (
+                          <MessageCircle className="w-5 h-5" />
+                        ) : (
+                          <Clock className="w-5 h-5" />
+                        )}
                       </div>
                     )}
-                    {chatSession?.status === "active" && (
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
-                    )}
+                    {chatSession?.status === "active" &&
+                      isWithinBusinessHours && (
+                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                      )}
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold">Nasosend Support</h3>
                     <p className="text-xs text-blue-100">
-                      {chatSession?.status === "waiting"
+                      {!isWithinBusinessHours
+                        ? `Offline - Back at ${nextOpenTime}`
+                        : chatSession?.status === "waiting"
                         ? `Queue position: ${queuePosition} • Wait time: ~${estimatedWaitTime} min`
                         : chatSession?.status === "active"
                         ? "Online - We typically reply in seconds"
@@ -610,285 +784,297 @@ const LiveChat = ({ userId, userName, userEmail }) => {
 
             {!isMinimized && (
               <>
-                {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.senderType === "customer"
-                          ? "justify-end"
-                          : message.senderType === "system"
-                          ? "justify-center"
-                          : "justify-start"
-                      }`}
-                    >
-                      {message.senderType === "system" ? (
-                        <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs">
-                          {message.text}
-                        </div>
-                      ) : (
+                {!isWithinBusinessHours ? (
+                  <OfflineMessage />
+                ) : (
+                  <>
+                    {/* Messages Area */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                      {messages.map((message) => (
                         <div
-                          className={`flex items-end space-x-2 max-w-[70%] ${
+                          key={message.id}
+                          className={`flex ${
                             message.senderType === "customer"
-                              ? "flex-row-reverse space-x-reverse"
-                              : ""
+                              ? "justify-end"
+                              : message.senderType === "system"
+                              ? "justify-center"
+                              : "justify-start"
                           }`}
                         >
-                          {message.senderType === "agent" && (
+                          {message.senderType === "system" ? (
+                            <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs">
+                              {message.text}
+                            </div>
+                          ) : (
+                            <div
+                              className={`flex items-end space-x-2 max-w-[70%] ${
+                                message.senderType === "customer"
+                                  ? "flex-row-reverse space-x-reverse"
+                                  : ""
+                              }`}
+                            >
+                              {message.senderType === "agent" && (
+                                <Image
+                                  src={
+                                    supportAgent?.avatar ||
+                                    `https://ui-avatars.com/api/?name=${message.senderName}&background=3b82f6&color=ffffff`
+                                  }
+                                  alt={message.senderName}
+                                  width={32}
+                                  height={32}
+                                  className="rounded-full"
+                                />
+                              )}
+                              <div
+                                className={`px-4 py-2 rounded-lg ${
+                                  message.senderType === "customer"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-white text-gray-900 border"
+                                }`}
+                              >
+                                <p className="text-sm whitespace-pre-wrap break-words">
+                                  {message.text}
+                                </p>
+
+                                {/* Attachments */}
+                                {message.attachments?.length > 0 && (
+                                  <div className="mt-2 space-y-1">
+                                    {message.attachments.map(
+                                      (attachment, idx) => (
+                                        <a
+                                          key={idx}
+                                          href={attachment.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className={`flex items-center space-x-2 text-xs ${
+                                            message.senderType === "customer"
+                                              ? "text-blue-100 hover:text-white"
+                                              : "text-blue-600 hover:text-blue-800"
+                                          }`}
+                                        >
+                                          {attachment.type?.startsWith(
+                                            "image/"
+                                          ) ? (
+                                            <ImageIcon className="w-4 h-4" />
+                                          ) : attachment.type?.startsWith(
+                                              "audio/"
+                                            ) ? (
+                                            <Mic className="w-4 h-4" />
+                                          ) : (
+                                            <FileText className="w-4 h-4" />
+                                          )}
+                                          <span className="truncate underline">
+                                            {attachment.name}
+                                          </span>
+                                        </a>
+                                      )
+                                    )}
+                                  </div>
+                                )}
+
+                                <div className="flex items-center justify-between mt-1">
+                                  <span
+                                    className={`text-xs ${
+                                      message.senderType === "customer"
+                                        ? "text-blue-100"
+                                        : "text-gray-500"
+                                    }`}
+                                  >
+                                    {formatTime(message.timestamp)}
+                                  </span>
+                                  {message.senderType === "customer" && (
+                                    <span className="ml-2">
+                                      {message.status === "sent" ? (
+                                        <Check className="w-3 h-3" />
+                                      ) : message.status === "delivered" ? (
+                                        <CheckCheck className="w-3 h-3" />
+                                      ) : message.status === "read" ? (
+                                        <CheckCheck className="w-3 h-3 text-blue-200" />
+                                      ) : (
+                                        <Clock className="w-3 h-3" />
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Typing Indicator */}
+                      {agentTyping && (
+                        <div className="flex justify-start">
+                          <div className="flex items-end space-x-2 max-w-[70%]">
                             <Image
                               src={
                                 supportAgent?.avatar ||
-                                `https://ui-avatars.com/api/?name=${message.senderName}&background=3b82f6&color=ffffff`
+                                `https://ui-avatars.com/api/?name=Agent&background=3b82f6&color=ffffff`
                               }
-                              alt={message.senderName}
+                              alt="Agent"
                               width={32}
                               height={32}
                               className="rounded-full"
                             />
-                          )}
-                          <div
-                            className={`px-4 py-2 rounded-lg ${
-                              message.senderType === "customer"
-                                ? "bg-blue-600 text-white"
-                                : "bg-white text-gray-900 border"
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap break-words">
-                              {message.text}
-                            </p>
-
-                            {/* Attachments */}
-                            {message.attachments?.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {message.attachments.map((attachment, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={attachment.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`flex items-center space-x-2 text-xs ${
-                                      message.senderType === "customer"
-                                        ? "text-blue-100 hover:text-white"
-                                        : "text-blue-600 hover:text-blue-800"
-                                    }`}
-                                  >
-                                    {attachment.type?.startsWith("image/") ? (
-                                      <ImageIcon className="w-4 h-4" />
-                                    ) : attachment.type?.startsWith(
-                                        "audio/"
-                                      ) ? (
-                                      <Mic className="w-4 h-4" />
-                                    ) : (
-                                      <FileText className="w-4 h-4" />
-                                    )}
-                                    <span className="truncate underline">
-                                      {attachment.name}
-                                    </span>
-                                  </a>
-                                ))}
+                            <div className="px-4 py-2 bg-white border rounded-lg">
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                <div
+                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                  style={{ animationDelay: "0.1s" }}
+                                ></div>
+                                <div
+                                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                                  style={{ animationDelay: "0.2s" }}
+                                ></div>
                               </div>
-                            )}
-
-                            <div className="flex items-center justify-between mt-1">
-                              <span
-                                className={`text-xs ${
-                                  message.senderType === "customer"
-                                    ? "text-blue-100"
-                                    : "text-gray-500"
-                                }`}
-                              >
-                                {formatTime(message.timestamp)}
-                              </span>
-                              {message.senderType === "customer" && (
-                                <span className="ml-2">
-                                  {message.status === "sent" ? (
-                                    <Check className="w-3 h-3" />
-                                  ) : message.status === "delivered" ? (
-                                    <CheckCheck className="w-3 h-3" />
-                                  ) : message.status === "read" ? (
-                                    <CheckCheck className="w-3 h-3 text-blue-200" />
-                                  ) : (
-                                    <Clock className="w-3 h-3" />
-                                  )}
-                                </span>
-                              )}
                             </div>
                           </div>
                         </div>
                       )}
-                    </div>
-                  ))}
 
-                  {/* Typing Indicator */}
-                  {agentTyping && (
-                    <div className="flex justify-start">
-                      <div className="flex items-end space-x-2 max-w-[70%]">
-                        <Image
-                          src={
-                            supportAgent?.avatar ||
-                            `https://ui-avatars.com/api/?name=Agent&background=3b82f6&color=ffffff`
-                          }
-                          alt="Agent"
-                          width={32}
-                          height={32}
-                          className="rounded-full"
-                        />
-                        <div className="px-4 py-2 bg-white border rounded-lg">
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Input Area */}
+                    <div className="border-t p-4 bg-white">
+                      {/* Attachments Preview */}
+                      {attachments.length > 0 && (
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          {attachments.map((attachment) => (
                             <div
-                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                              style={{ animationDelay: "0.1s" }}
-                            ></div>
-                            <div
-                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                              style={{ animationDelay: "0.2s" }}
-                            ></div>
+                              key={attachment.id}
+                              className="flex items-center space-x-2 bg-gray-100 rounded-lg p-2 text-sm"
+                            >
+                              <Paperclip className="w-4 h-4 text-gray-500" />
+                              <span className="truncate max-w-[150px]">
+                                {attachment.name}
+                              </span>
+                              <button
+                                onClick={() =>
+                                  setAttachments((prev) =>
+                                    prev.filter((a) => a.id !== attachment.id)
+                                  )
+                                }
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Emoji Picker */}
+                      {showEmoji && (
+                        <div className="absolute bottom-20 right-4 bg-white border rounded-lg shadow-lg p-2">
+                          <div className="grid grid-cols-5 gap-2">
+                            {emojis.map((emoji) => (
+                              <button
+                                key={emoji}
+                                onClick={() => handleEmojiSelect(emoji)}
+                                className="text-2xl hover:bg-gray-100 rounded p-1"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  <div ref={messagesEndRef} />
-                </div>
+                      <div className="flex items-end space-x-2">
+                        <div className="flex-1">
+                          <textarea
+                            ref={inputRef}
+                            value={currentMessage}
+                            onChange={(e) => {
+                              setCurrentMessage(e.target.value);
+                              handleTyping();
+                            }}
+                            onKeyPress={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                sendMessage();
+                              }
+                            }}
+                            placeholder="Type your message..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            rows={1}
+                            style={{ minHeight: "38px", maxHeight: "100px" }}
+                            maxLength={MAX_MESSAGE_LENGTH}
+                            disabled={chatSession?.status === "closed"}
+                          />
+                        </div>
 
-                {/* Input Area */}
-                <div className="border-t p-4 bg-white">
-                  {/* Attachments Preview */}
-                  {attachments.length > 0 && (
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      {attachments.map((attachment) => (
-                        <div
-                          key={attachment.id}
-                          className="flex items-center space-x-2 bg-gray-100 rounded-lg p-2 text-sm"
-                        >
-                          <Paperclip className="w-4 h-4 text-gray-500" />
-                          <span className="truncate max-w-[150px]">
-                            {attachment.name}
-                          </span>
+                        {/* Action Buttons */}
+                        <div className="flex items-center space-x-1">
+                          {/* File Upload */}
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            accept="image/*,application/pdf,.doc,.docx"
+                          />
                           <button
-                            onClick={() =>
-                              setAttachments((prev) =>
-                                prev.filter((a) => a.id !== attachment.id)
-                              )
-                            }
-                            className="text-red-500 hover:text-red-700"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
                           >
-                            <X className="w-3 h-3" />
+                            {isUploading ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Paperclip className="w-4 h-4" />
+                            )}
+                          </button>
+
+                          {/* Emoji */}
+                          <button
+                            onClick={() => setShowEmoji(!showEmoji)}
+                            className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                          >
+                            <Smile className="w-4 h-4" />
+                          </button>
+
+                          {/* Send */}
+                          <button
+                            onClick={sendMessage}
+                            disabled={
+                              (!currentMessage.trim() &&
+                                attachments.length === 0) ||
+                              chatSession?.status === "closed"
+                            }
+                            className={`p-2 rounded-lg transition-colors ${
+                              currentMessage.trim() || attachments.length > 0
+                                ? "bg-blue-600 text-white hover:bg-blue-700"
+                                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            }`}
+                          >
+                            <Send className="w-4 h-4" />
                           </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
 
-                  {/* Emoji Picker */}
-                  {showEmoji && (
-                    <div className="absolute bottom-20 right-4 bg-white border rounded-lg shadow-lg p-2">
-                      <div className="grid grid-cols-5 gap-2">
-                        {emojis.map((emoji) => (
-                          <button
-                            key={emoji}
-                            onClick={() => handleEmojiSelect(emoji)}
-                            className="text-2xl hover:bg-gray-100 rounded p-1"
+                      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                        <span>
+                          Press Enter to send, Shift+Enter for new line
+                        </span>
+                        {currentMessage.length > 0 && (
+                          <span
+                            className={
+                              currentMessage.length > MAX_MESSAGE_LENGTH * 0.9
+                                ? "text-red-500"
+                                : ""
+                            }
                           >
-                            {emoji}
-                          </button>
-                        ))}
+                            {currentMessage.length}/{MAX_MESSAGE_LENGTH}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  )}
-
-                  <div className="flex items-end space-x-2">
-                    <div className="flex-1">
-                      <textarea
-                        ref={inputRef}
-                        value={currentMessage}
-                        onChange={(e) => {
-                          setCurrentMessage(e.target.value);
-                          handleTyping();
-                        }}
-                        onKeyPress={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            sendMessage();
-                          }
-                        }}
-                        placeholder="Type your message..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        rows={1}
-                        style={{ minHeight: "38px", maxHeight: "100px" }}
-                        maxLength={MAX_MESSAGE_LENGTH}
-                        disabled={chatSession?.status === "closed"}
-                      />
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center space-x-1">
-                      {/* File Upload */}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        accept="image/*,application/pdf,.doc,.docx"
-                      />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploading}
-                        className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        {isUploading ? (
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Paperclip className="w-4 h-4" />
-                        )}
-                      </button>
-
-                      {/* Emoji */}
-                      <button
-                        onClick={() => setShowEmoji(!showEmoji)}
-                        className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
-                      >
-                        <Smile className="w-4 h-4" />
-                      </button>
-
-                      {/* Send */}
-                      <button
-                        onClick={sendMessage}
-                        disabled={
-                          (!currentMessage.trim() &&
-                            attachments.length === 0) ||
-                          chatSession?.status === "closed"
-                        }
-                        className={`p-2 rounded-lg transition-colors ${
-                          currentMessage.trim() || attachments.length > 0
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        }`}
-                      >
-                        <Send className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                    <span>Press Enter to send, Shift+Enter for new line</span>
-                    {currentMessage.length > 0 && (
-                      <span
-                        className={
-                          currentMessage.length > MAX_MESSAGE_LENGTH * 0.9
-                            ? "text-red-500"
-                            : ""
-                        }
-                      >
-                        {currentMessage.length}/{MAX_MESSAGE_LENGTH}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                  </>
+                )}
               </>
             )}
           </div>

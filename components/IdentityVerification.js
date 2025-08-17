@@ -49,7 +49,7 @@ const getAuthErrorText = (errorCode) => {
     case "auth/email-already-exists":
       return "This email is already registered with another account.";
     default:
-      return "An unknown error occurred. Please try again.";
+      return "";
   }
 };
 

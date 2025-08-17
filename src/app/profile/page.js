@@ -29,7 +29,6 @@ export default function ProfilePage() {
   const [profileData, setProfileData] = useState({
     displayName: "",
     email: "",
-    bio: "",
     address: "",
     city: "",
     country: "",
@@ -49,7 +48,6 @@ export default function ProfilePage() {
         displayName:
           userProfile.verification?.fullName || userProfile.displayName || "",
         email: user.email || "",
-        bio: userProfile.verification.bio || "",
         address: userProfile.verification.streetAddress || "",
         city: userProfile.verification.city || "",
         country: userProfile.verification.country || "",
@@ -113,7 +111,6 @@ export default function ProfilePage() {
       await updateDoc(userRef, {
         displayName: profileData.displayName,
         email: profileData.email,
-        bio: profileData.bio,
         address: profileData.address,
         city: profileData.city,
         country: profileData.country,
@@ -328,7 +325,7 @@ export default function ProfilePage() {
                         />
                       </div>
                       <p className="text-xs text-gray-500 mt-2">
-                        Phone number cannot be changed
+                        To change phone number please contact support
                       </p>
                     </div>
                   </div>
@@ -373,25 +370,6 @@ export default function ProfilePage() {
                           </button>
                         ))}
                       </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
-                        Bio
-                      </label>
-                      <textarea
-                        value={profileData.bio}
-                        onChange={(e) =>
-                          setProfileData({
-                            ...profileData,
-                            bio: e.target.value,
-                          })
-                        }
-                        disabled={!isEditing}
-                        rows="4"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-all duration-200 resize-none"
-                        placeholder="Tell us about yourself..."
-                      />
                     </div>
                   </div>
                 </div>
@@ -626,7 +604,6 @@ export default function ProfilePage() {
               setProfileData({
                 displayName: userProfile?.displayName || "",
                 email: userProfile?.email || "",
-                bio: userProfile?.bio || "",
                 address: userProfile?.address || "",
                 city: userProfile?.city || "",
                 country: userProfile?.country || "Australia",
