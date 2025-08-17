@@ -79,13 +79,13 @@ const Footer = () => {
             <h4 className="font-semibold mb-4">Community</h4>
             <div className="space-y-3 text-sm">
               <Link
-                href="/sender/dashboard"
+                href="/sender/verification"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Send an Item
               </Link>
               <Link
-                href="/traveler/dashboard"
+                href="/traveler/verification"
                 className="block text-gray-300 hover:text-white transition-colors"
               >
                 Become a Traveler

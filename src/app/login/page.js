@@ -12,7 +12,6 @@ import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import PhoneInput from "@/components/PhoneInput";
 import OTPInput from "@/components/OTPInput";
-import AuthWrapper from "@/components/AuthWrapper";
 import Link from "next/link";
 
 export default function LoginPage() {

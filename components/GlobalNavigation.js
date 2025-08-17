@@ -107,29 +107,16 @@ export default function GlobalNavigation() {
 
     return (
       <>
-        <Link
-          href="/profile"
-          onClick={handleMenuItemClick}
-          className={baseClasses}
-        >
-          {isMobile ? (
-            <svg
-              className={iconContainerClasses}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-              />
-            </svg>
-          ) : (
-            <div className={iconContainerClasses}>
+        {/* Only show Profile Settings if user is verified */}
+        {userProfile?.verified === true && (
+          <Link
+            href="/profile"
+            onClick={handleMenuItemClick}
+            className={baseClasses}
+          >
+            {isMobile ? (
               <svg
-                className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500"
+                className={iconContainerClasses}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -141,15 +128,31 @@ export default function GlobalNavigation() {
                   d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                 />
               </svg>
-            </div>
-          )}
-          <div className="min-w-0">
-            <span className="font-semibold">Profile Settings</span>
-            {!isMobile && (
-              <p className="text-xs text-gray-500">Manage your account</p>
+            ) : (
+              <div className={iconContainerClasses}>
+                <svg
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+              </div>
             )}
-          </div>
-        </Link>
+            <div className="min-w-0">
+              <span className="font-semibold">Profile Settings</span>
+              {!isMobile && (
+                <p className="text-xs text-gray-500">Manage your account</p>
+              )}
+            </div>
+          </Link>
+        )}
 
         {currentAccountType === "sender" && (
           <Link
@@ -1085,26 +1088,29 @@ export default function GlobalNavigation() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <Link
-                      href="/profile"
-                      onClick={handleMenuItemClick}
-                      className="flex flex-col items-center px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <svg
-                        className="w-5 h-5 text-gray-500 mb-1"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                    {/* Only show Profile if user is verified */}
+                    {userProfile?.verified === true && (
+                      <Link
+                        href="/profile"
+                        onClick={handleMenuItemClick}
+                        className="flex flex-col items-center px-3 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
-                      <span className="text-xs font-semibold">Profile</span>
-                    </Link>
+                        <svg
+                          className="w-5 h-5 text-gray-500 mb-1"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          />
+                        </svg>
+                        <span className="text-xs font-semibold">Profile</span>
+                      </Link>
+                    )}
 
                     <Link
                       href="/notifications"

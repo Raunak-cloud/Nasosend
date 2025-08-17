@@ -18,6 +18,7 @@ import {
   updateEmail,
   EmailAuthProvider,
   linkWithCredential,
+  fetchSignInMethodsForEmail,
 } from "firebase/auth";
 import {
   Mail,
@@ -45,6 +46,8 @@ const getAuthErrorText = (errorCode) => {
       return "This email is already associated with another account.";
     case "auth/email-already-in-use":
       return "This email is already in use by another account.";
+    case "auth/email-already-exists":
+      return "This email is already registered with another account.";
     default:
       return "An unknown error occurred. Please try again.";
   }
@@ -70,12 +73,14 @@ export default function IdentityVerification() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Email verification state
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
   const [pendingEmailUpdate, setPendingEmailUpdate] = useState(null);
+  const [emailError, setEmailError] = useState("");
 
   // Field validation errors
   const [validationErrors, setValidationErrors] = useState({});
@@ -109,6 +114,7 @@ export default function IdentityVerification() {
             setIsEmailVerified(true);
             setVerificationSent(false);
             setSubmitError("");
+            setEmailError("");
             setPendingEmailUpdate(email);
 
             if (window.history.replaceState) {
@@ -120,7 +126,7 @@ export default function IdentityVerification() {
             }
           } catch (error) {
             console.error("Error linking email:", error);
-            setSubmitError(getAuthErrorText(error.code));
+            setEmailError(getAuthErrorText(error.code));
           } finally {
             setIsVerifyingEmail(false);
           }
@@ -190,18 +196,56 @@ export default function IdentityVerification() {
     if (name === "email" && value !== user?.email) {
       setIsEmailVerified(false);
       setVerificationSent(false);
+      setEmailError("");
+    }
+  };
+
+  const checkEmailExists = async (email) => {
+    try {
+      // Check if email exists in Firebase Auth
+      const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+
+      if (signInMethods.length > 0) {
+        // Email exists in authentication
+        // Check if it's the current user's email
+        if (user.email === email) {
+          return { exists: false }; // It's the same user, allow verification
+        }
+
+        // Email is registered to another account in the authentication system
+        return {
+          exists: true,
+          message: "This email is already registered to another account.",
+        };
+      }
+
+      // Email doesn't exist in authentication system, safe to use
+      return { exists: false };
+    } catch (error) {
+      console.error("Error checking email:", error);
+      // If there's an error, we'll let the user proceed and handle it during actual verification
+      return { exists: false, error: true };
     }
   };
 
   const handleSendVerificationEmail = async () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setSubmitError("Please enter a valid email address.");
+      setEmailError("Please enter a valid email address.");
       return;
     }
 
     setIsVerifyingEmail(true);
-    setSubmitError("");
+    setEmailError("");
+
+    // Check if email already exists
+    const emailCheck = await checkEmailExists(formData.email);
+
+    if (emailCheck.exists) {
+      setEmailError(emailCheck.message);
+      setIsVerifyingEmail(false);
+      return;
+    }
 
     const actionCodeSettings = {
       url: window.location.href,
@@ -212,10 +256,10 @@ export default function IdentityVerification() {
       await sendSignInLinkToEmail(auth, formData.email, actionCodeSettings);
       window.localStorage.setItem("emailForSignIn", formData.email);
       setVerificationSent(true);
-      setSubmitError("");
+      setEmailError("");
     } catch (error) {
       console.error("Error sending verification email:", error);
-      setSubmitError(getAuthErrorText(error.code));
+      setEmailError(getAuthErrorText(error.code));
     } finally {
       setIsVerifyingEmail(false);
     }
@@ -253,7 +297,7 @@ export default function IdentityVerification() {
     }
 
     setSubmitError("");
-    setIsSubmitting(true);
+    setIsUploading(true);
     setUploadProgress(0);
 
     try {
@@ -275,7 +319,7 @@ export default function IdentityVerification() {
         (error) => {
           console.error("Upload failed:", error);
           setSubmitError("Failed to upload file. Please try again.");
-          setIsSubmitting(false);
+          setIsUploading(false);
           setUploadProgress(0);
         },
         async () => {
@@ -288,14 +332,14 @@ export default function IdentityVerification() {
           );
           localStorage.setItem("stateIdUrl", downloadURL);
           setSubmitError("");
-          setIsSubmitting(false);
+          setIsUploading(false);
           setUploadProgress(0);
         }
       );
     } catch (error) {
       console.error("Error uploading file:", error);
       setSubmitError("An error occurred during file upload.");
-      setIsSubmitting(false);
+      setIsUploading(false);
       setUploadProgress(0);
     }
   };
@@ -351,7 +395,6 @@ export default function IdentityVerification() {
 
     setIsSubmitting(true);
     setSubmitError("");
-    setUploadProgress(100);
 
     try {
       const verificationData = {
@@ -396,7 +439,6 @@ export default function IdentityVerification() {
       );
     } finally {
       setIsSubmitting(false);
-      setUploadProgress(0);
     }
   };
 
@@ -564,7 +606,7 @@ export default function IdentityVerification() {
                           className={`w-full px-4 py-3 border ${
                             isEmailVerified
                               ? "border-green-500 bg-green-50"
-                              : validationErrors.email
+                              : emailError
                               ? "border-red-500"
                               : "border-gray-300"
                           } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12`}
@@ -597,7 +639,13 @@ export default function IdentityVerification() {
                         </button>
                       )}
                     </div>
-                    {verificationSent && !isEmailVerified && (
+                    {emailError && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        {emailError}
+                      </p>
+                    )}
+                    {verificationSent && !isEmailVerified && !emailError && (
                       <p className="mt-2 text-sm text-yellow-600 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-2" />A verification
                         link has been sent to your email. Please check your
@@ -770,12 +818,33 @@ export default function IdentityVerification() {
                     State ID Document *
                   </label>
                   <div
-                    className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                    className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all relative overflow-hidden ${
                       validationErrors.stateId
                         ? "border-red-500"
                         : "border-gray-300 hover:border-blue-400"
                     }`}
                   >
+                    {/* Upload Progress Overlay */}
+                    {isUploading && uploadProgress > 0 && (
+                      <div className="absolute inset-0 bg-blue-50 bg-opacity-90 flex flex-col items-center justify-center z-10">
+                        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4">
+                          <Loader2 className="animate-spin h-8 w-8 text-white" />
+                        </div>
+                        <p className="text-lg font-semibold text-blue-900 mb-2">
+                          Uploading...
+                        </p>
+                        <div className="w-64 bg-blue-200 rounded-full h-3 mb-2">
+                          <div
+                            className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          {Math.round(uploadProgress)}%
+                        </p>
+                      </div>
+                    )}
+
                     <input
                       id="stateId"
                       name="stateId"
@@ -783,6 +852,7 @@ export default function IdentityVerification() {
                       accept=".jpg,.jpeg,.png,.pdf"
                       onChange={handleFileChange}
                       className="hidden"
+                      disabled={isUploading}
                     />
                     <label htmlFor="stateId" className="cursor-pointer">
                       <div className="flex flex-col items-center">
@@ -807,8 +877,14 @@ export default function IdentityVerification() {
                         <p className="text-sm text-gray-500 mb-4">
                           Driver's License, State ID, or Passport
                         </p>
-                        <div className="bg-blue-600 text-white px-6 py-2 rounded-xl font-medium hover:bg-blue-700 transition-colors">
-                          Choose File
+                        <div
+                          className={`px-6 py-2 rounded-xl font-medium transition-colors ${
+                            isUploading
+                              ? "bg-gray-400 text-white cursor-not-allowed"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                          }`}
+                        >
+                          {isUploading ? "Uploading..." : "Choose File"}
                         </div>
                       </div>
                     </label>
@@ -885,30 +961,20 @@ export default function IdentityVerification() {
                   </div>
                 </div>
               )}
-
-              {isSubmitting && uploadProgress > 0 && uploadProgress < 100 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-                  <div className="flex justify-between text-sm text-blue-800 mb-2">
-                    <span>Uploading file...</span>
-                    <span>{Math.round(uploadProgress)}%</span>
-                  </div>
-                  <div className="bg-blue-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-8 sm:px-12 py-6 border-t border-gray-200">
               <button
                 type="submit"
-                disabled={isSubmitting || !isEmailVerified || !stateIdUrl}
+                disabled={
+                  isSubmitting || !isEmailVerified || !stateIdUrl || isUploading
+                }
                 className={`w-full text-white py-4 px-8 rounded-2xl font-bold text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 shadow-lg
                   ${
-                    isSubmitting || !isEmailVerified || !stateIdUrl
+                    isSubmitting ||
+                    !isEmailVerified ||
+                    !stateIdUrl ||
+                    isUploading
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                   }`}
