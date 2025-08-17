@@ -84,8 +84,8 @@ function LoginContent() {
     setIsLoading(true);
 
     try {
-      /*       setupRecaptcha();
-       */ const appVerifier = window.recaptchaVerifier;
+      setupRecaptcha();
+      const appVerifier = window.recaptchaVerifier;
 
       const confirmationResult = await signInWithPhoneNumber(
         auth,
