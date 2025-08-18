@@ -68,6 +68,8 @@ export default function SupportDashboard() {
     message: "",
     type: "info",
   });
+  const [showTripDocumentModal, setShowTripDocumentModal] = useState(false);
+  const [selectedTripForDoc, setSelectedTripForDoc] = useState(null);
   const [blogPostsCount, setBlogPostsCount] = useState(0);
 
   const colors = {
@@ -157,6 +159,15 @@ export default function SupportDashboard() {
       console.error("Error fetching trips:", error);
     }
   }, []);
+
+  const handleViewTripDocument = (trip) => {
+    console.log("Trip data:", trip); // Add this line to see what fields are available
+    console.log("eTicket:", trip.eTicket);
+    console.log("eTicketUrl:", trip.eTicketUrl);
+    console.log("eTicketDownloadUrl:", trip.eTicketDownloadUrl);
+    setSelectedTripForDoc(trip);
+    setShowTripDocumentModal(true);
+  };
 
   // Fetch all requests
   const fetchRequests = useCallback(async () => {
@@ -286,10 +297,10 @@ export default function SupportDashboard() {
 
       // Send email to user
       const emailPayload = {
-        to: userData.email,
+        to: userData?.verification.email,
         subject: "Your Nasosend Identity Has Been Verified!",
         text: `Hello ${
-          userData.verification?.fullName || "User"
+          userData?.verification?.fullName || "User"
         },\n\nYour identity verification has been successfully approved. You can now post trips and send requests on Nasosend.\n\nBest regards,\nTeam Nasosend`,
         html: `<p>Hello ${
           userData.verification?.fullName || "User"
@@ -361,10 +372,10 @@ export default function SupportDashboard() {
       await updateDoc(userRef, {
         notifications: arrayUnion(notificationPayload),
       });
-
+      console.log(44);
       // Send email to user
       const emailPayload = {
-        to: userData.email,
+        to: userData.verification.email,
         subject: "Your Nasosend Identity Verification Was Rejected",
         text: `Hello ${
           userData.verification?.fullName || "User"
@@ -536,7 +547,7 @@ export default function SupportDashboard() {
         text: `Hello ${tripData.travelerName},\n\nWe regret to inform you that your trip from ${tripData.departureCity} to ${tripData.arrivalCity} was not approved.\n\nReason: ${tripRejectionReason}\n\nPlease review the requirements and submit a new trip if you believe this was an error. For questions, contact our support team.\n\nBest regards,\nTeam Nasosend`,
         html: `<p>Hello ${tripData.travelerName},</p><p>We regret to inform you that your trip from <strong>${tripData.departureCity}</strong> to <strong>${tripData.arrivalCity}</strong> was not approved.</p><p><strong>Reason:</strong> ${tripRejectionReason}</p><p>Please review the requirements and submit a new trip if you believe this was an error. For questions, contact our support team.</p><p>Best regards,<br/>Team Nasosend</p>`,
       };
-
+      console.log(emailPayload);
       await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -843,7 +854,7 @@ export default function SupportDashboard() {
                       key={trip.id}
                       className="flex items-center justify-between p-4 border border-yellow-300 bg-yellow-50 rounded-lg"
                     >
-                      <div>
+                      <div className="flex-1">
                         <p className="font-semibold flex items-center">
                           <Plane size={16} className="mr-2 text-yellow-600" />
                           {trip.departureCity} to {trip.arrivalCity}
@@ -862,11 +873,32 @@ export default function SupportDashboard() {
                         </p>
                         {trip.flightNumber && (
                           <p className="text-sm text-gray-500">
-                            Flight: {trip.flightNumber}
+                            Flight: {trip.flightNumber} ({trip.airline})
+                          </p>
+                        )}
+                        {trip.allowedItems && trip.allowedItems.length > 0 && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            Items: {trip.allowedItems.slice(0, 2).join(", ")}
+                            {trip.allowedItems.length > 2 &&
+                              ` +${trip.allowedItems.length - 2} more`}
+                          </p>
+                        )}
+                        {trip.pickupCities && trip.pickupCities.length > 0 && (
+                          <p className="text-sm text-gray-500">
+                            Pickup: {trip.pickupCities.join(", ")}
                           </p>
                         )}
                       </div>
                       <div className="flex space-x-2">
+                        {trip.eTicket && (
+                          <button
+                            onClick={() => handleViewTripDocument(trip)}
+                            className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+                            title="View e-ticket"
+                          >
+                            <FileText size={20} />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleApproveTrip(trip.id)}
                           className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
@@ -903,7 +935,7 @@ export default function SupportDashboard() {
                     key={trip.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
                   >
-                    <div>
+                    <div className="flex-1">
                       <p className="font-semibold flex items-center">
                         <Plane size={16} className="mr-2 text-gray-600" />
                         {trip.departureCity} to {trip.arrivalCity}
@@ -920,8 +952,22 @@ export default function SupportDashboard() {
                       <p className="text-sm text-gray-500">
                         Weight: {trip.availableWeight} kg
                       </p>
+                      {trip.flightNumber && (
+                        <p className="text-sm text-gray-500">
+                          Flight: {trip.flightNumber} ({trip.airline})
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2">
+                      {trip.eTicket && (
+                        <button
+                          onClick={() => handleViewTripDocument(trip)}
+                          className="p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                          title="View e-ticket"
+                        >
+                          <FileText size={20} />
+                        </button>
+                      )}
                       <span className="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800">
                         Active
                       </span>
@@ -1365,6 +1411,232 @@ export default function SupportDashboard() {
           </div>
         )}
 
+        {showTripDocumentModal && selectedTripForDoc && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold">
+                  Trip Documents - {selectedTripForDoc.departureCity} to{" "}
+                  {selectedTripForDoc.arrivalCity}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowTripDocumentModal(false);
+                    setSelectedTripForDoc(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Trip Details */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-semibold text-lg mb-3">
+                    Trip Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">Traveler:</span>{" "}
+                      {selectedTripForDoc.travelerName}
+                    </div>
+                    <div>
+                      <span className="font-medium">Email:</span>{" "}
+                      {selectedTripForDoc.travelerEmail || "N/A"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Phone:</span>{" "}
+                      {selectedTripForDoc.travelerPhone || "N/A"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Flight:</span>{" "}
+                      {selectedTripForDoc.flightNumber} (
+                      {selectedTripForDoc.airline})
+                    </div>
+                    <div>
+                      <span className="font-medium">Departure:</span>{" "}
+                      {new Date(
+                        selectedTripForDoc.departureDate
+                      ).toLocaleDateString()}
+                    </div>
+                    <div>
+                      <span className="font-medium">Arrival:</span>{" "}
+                      {new Date(
+                        selectedTripForDoc.arrivalDate
+                      ).toLocaleDateString()}
+                    </div>
+                    <div>
+                      <span className="font-medium">Available Weight:</span>{" "}
+                      {selectedTripForDoc.availableWeight} kg
+                    </div>
+                    <div>
+                      <span className="font-medium">Price per kg:</span> $
+                      {selectedTripForDoc.pricePerKg}
+                    </div>
+                  </div>
+
+                  {selectedTripForDoc.allowedItems &&
+                    selectedTripForDoc.allowedItems.length > 0 && (
+                      <div className="mt-3">
+                        <span className="font-medium text-sm">
+                          Allowed Items:
+                        </span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {selectedTripForDoc.allowedItems.map(
+                            (item, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                              >
+                                {item}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {selectedTripForDoc.pickupCities &&
+                    selectedTripForDoc.pickupCities.length > 0 && (
+                      <div className="mt-3">
+                        <span className="font-medium text-sm">
+                          Pickup Cities:
+                        </span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {selectedTripForDoc.pickupCities.map(
+                            (city, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                              >
+                                {city}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+                </div>
+
+                {/* E-Ticket Document */}
+                <div>
+                  <h4 className="font-semibold text-lg mb-3">
+                    E-Ticket Document
+                  </h4>
+                  {/* Check multiple possible fields for e-ticket */}
+                  {selectedTripForDoc.eTicketDownloadUrl ||
+                  selectedTripForDoc.eTicketUrl ||
+                  selectedTripForDoc.eTicket ? (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <FileText className="w-8 h-8 text-blue-600 mr-3" />
+                          <div>
+                            <p className="font-medium">
+                              {selectedTripForDoc.eTicket || "E-Ticket.pdf"}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              PDF Document
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Show download buttons only if we have a download URL */}
+                        {selectedTripForDoc.eTicketDownloadUrl ? (
+                          <div className="flex gap-2">
+                            <a
+                              href={selectedTripForDoc.eTicketDownloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                            >
+                              View PDF
+                            </a>
+                            <a
+                              href={selectedTripForDoc.eTicketDownloadUrl}
+                              download={
+                                selectedTripForDoc.eTicket || "eticket.pdf"
+                              }
+                              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+                            >
+                              Download
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-yellow-600">
+                            Document uploaded but preview not available
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Only show iframe if we have a download URL */}
+                      {selectedTripForDoc.eTicketDownloadUrl && (
+                        <div className="mt-4">
+                          <iframe
+                            src={`${selectedTripForDoc.eTicketDownloadUrl}#toolbar=0`}
+                            className="w-full h-96 border border-gray-200 rounded"
+                            title="E-Ticket PDF"
+                            onError={(e) => {
+                              console.error("Failed to load PDF in iframe");
+                              e.target.style.display = "none";
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Show message if document exists but no download URL */}
+                      {!selectedTripForDoc.eTicketDownloadUrl &&
+                        selectedTripForDoc.eTicket && (
+                          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                            <p className="font-medium mb-1">
+                              Legacy Upload Detected
+                            </p>
+                            <p>
+                              This trip was created before the new upload
+                              system. The e-ticket "{selectedTripForDoc.eTicket}
+                              " was uploaded but needs to be re-uploaded by the
+                              traveler to enable preview.
+                            </p>
+                          </div>
+                        )}
+                    </div>
+                  ) : (
+                    <div className="border border-gray-200 rounded-lg p-4 text-center text-gray-500">
+                      No e-ticket document uploaded
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons for Pending Trips */}
+                {selectedTripForDoc.status === "pending_verification" && (
+                  <div className="flex space-x-4 mt-6 pt-6 border-t">
+                    <button
+                      onClick={() => {
+                        handleApproveTrip(selectedTripForDoc.id);
+                        setShowTripDocumentModal(false);
+                        setSelectedTripForDoc(null);
+                      }}
+                      className="flex-1 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      Approve Trip
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleRejectTrip(selectedTripForDoc);
+                        setShowTripDocumentModal(false);
+                        setSelectedTripForDoc(null);
+                      }}
+                      className="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      Reject Trip
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Reject Reason Modal */}
         {showRejectReasonModal && userToReject && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

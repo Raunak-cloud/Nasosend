@@ -34,6 +34,7 @@ import {
   Edit,
   Trash,
 } from "lucide-react";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function TravelerDashboardPage() {
   return <TravelerDashboard />;
@@ -221,6 +222,148 @@ function TravelerDashboard() {
     setShowEditTrip(true);
   };
 
+  const handleCreateTrip = async () => {
+    // Validation
+    if (!tripData.flightNumber || !tripData.airline || !tripData.eTicket) {
+      setShowNotification({
+        isVisible: true,
+        message:
+          "Please fill in all mandatory flight details and upload required documents.",
+        type: "warning",
+      });
+      return;
+    }
+    if (tripData.allowedItems.length === 0) {
+      setShowNotification({
+        isVisible: true,
+        message: "Please select at least one type of item you can carry.",
+        type: "warning",
+      });
+      return;
+    }
+    if (tripData.pickupCities.length === 0) {
+      setShowNotification({
+        isVisible: true,
+        message: "Please select at least one pickup city.",
+        type: "warning",
+      });
+      return;
+    }
+
+    try {
+      console.log("Starting trip creation...");
+      console.log("File to upload:", tripData.eTicket);
+
+      // Upload e-ticket to Firebase Storage
+      const storage = getStorage();
+      const timestamp = Date.now();
+      const fileName = `etickets/${user.uid}/${timestamp}_${tripData.eTicket.name}`;
+      const storageRef = ref(storage, fileName);
+
+      console.log("Uploading to path:", fileName);
+
+      // Upload the file
+      const snapshot = await uploadBytes(storageRef, tripData.eTicket);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      console.log("Upload successful. Download URL:", downloadURL);
+
+      // Create trip payload - DO NOT spread tripData
+      const tripPayload = {
+        // Dates
+        departureDate: tripData.departureDate,
+        arrivalDate: tripData.arrivalDate,
+
+        // Cities
+        departureCity: tripData.departureCity,
+        arrivalCity: tripData.arrivalCity,
+
+        // Weight and pricing
+        availableWeight: parseFloat(tripData.availableWeight),
+        pricePerKg: parseFloat(tripData.pricePerKg),
+
+        // Flight info
+        flightNumber: tripData.flightNumber,
+        airline: tripData.airline,
+
+        // Arrays
+        allowedItems: tripData.allowedItems,
+        pickupCities: tripData.pickupCities,
+
+        // E-ticket fields - ALL THREE
+        eTicket: tripData.eTicket.name, // Original filename
+        eTicketUrl: fileName, // Storage path
+        eTicketDownloadUrl: downloadURL, // Direct download URL
+
+        // Traveler info
+        travelerId: user.uid,
+        travelerName: userProfile.verification?.fullName || user.phoneNumber,
+        travelerGender: userProfile.verification?.gender || null,
+        travelerPhone: user.phoneNumber || null,
+        travelerEmail: user.email || null,
+
+        // Status
+        verified: userProfile.verified || false,
+        status: "pending_verification",
+
+        // Timestamps
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      console.log("Trip payload to save:", tripPayload);
+
+      // Add to Firestore
+      const docRef = await addDoc(collection(db, "trips"), tripPayload);
+      console.log("Trip created successfully with ID:", docRef.id);
+
+      // Send notification to support team
+      const supportUsersQuery = query(
+        collection(db, "users"),
+        where("role", "==", "support")
+      );
+      const supportUsersSnapshot = await getDocs(supportUsersQuery);
+
+      if (!supportUsersSnapshot.empty) {
+        const supportUserDoc = supportUsersSnapshot.docs[0];
+        const notificationPayload = {
+          id: new Date().getTime(),
+          type: "info",
+          title: "New Trip for Verification",
+          message: `A new trip from ${
+            userProfile.verification?.fullName || user.phoneNumber
+          } is pending verification.`,
+          read: false,
+          timestamp: new Date().toISOString(),
+        };
+
+        await updateDoc(doc(db, "users", supportUserDoc.id), {
+          notifications: arrayUnion(notificationPayload),
+        });
+      }
+
+      // Clean up
+      setShowCreateTrip(false);
+      fetchTrips();
+      resetTripData();
+
+      setShowNotification({
+        isVisible: true,
+        message: "Trip created successfully and is pending review!",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Error creating trip:", error);
+      console.error("Error details:", error.message);
+      setShowNotification({
+        isVisible: true,
+        message: `Failed to create trip: ${error.message}`,
+        type: "error",
+      });
+    }
+  };
+  // Also update the handleUpdateTrip function similarly:
+
   const handleUpdateTrip = async () => {
     if (!editingTrip) return;
 
@@ -264,8 +407,19 @@ function TravelerDashboard() {
         updatedAt: serverTimestamp(),
       };
 
+      // If a new e-ticket is uploaded, upload it to Firebase Storage
       if (tripData.eTicket) {
+        const storage = getStorage();
+        const timestamp = Date.now();
+        const fileName = `etickets/${user.uid}/${timestamp}_${tripData.eTicket.name}`;
+        const storageRef = ref(storage, fileName);
+
+        const snapshot = await uploadBytes(storageRef, tripData.eTicket);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+
         tripPayload.eTicket = tripData.eTicket.name;
+        tripPayload.eTicketUrl = fileName;
+        tripPayload.eTicketDownloadUrl = downloadURL;
       }
 
       await updateDoc(doc(db, "trips", editingTrip.id), tripPayload);
@@ -310,90 +464,6 @@ function TravelerDashboard() {
       setShowNotification({
         isVisible: true,
         message: "Failed to delete trip. Please try again.",
-        type: "error",
-      });
-    }
-  };
-
-  const handleCreateTrip = async () => {
-    if (!tripData.flightNumber || !tripData.airline || !tripData.eTicket) {
-      setShowNotification({
-        isVisible: true,
-        message:
-          "Please fill in all mandatory flight details and upload required documents.",
-        type: "warning",
-      });
-      return;
-    }
-    if (tripData.allowedItems.length === 0) {
-      setShowNotification({
-        isVisible: true,
-        message: "Please select at least one type of item you can carry.",
-        type: "warning",
-      });
-      return;
-    }
-    if (tripData.pickupCities.length === 0) {
-      setShowNotification({
-        isVisible: true,
-        message: "Please select at least one pickup city.",
-        type: "warning",
-      });
-      return;
-    }
-
-    try {
-      const tripPayload = {
-        ...tripData,
-        eTicket: tripData.eTicket.name,
-        travelerId: user.uid,
-        travelerName: userProfile.verification?.fullName || user.phoneNumber,
-        travelerGender: userProfile.verification?.gender,
-        travelerPhone: user.phoneNumber,
-        travelerEmail: user.email, // Add traveler's email to the trip document
-        verified: userProfile.verified || false,
-        status: "pending_verification", // Changed status to pending verification
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      await addDoc(collection(db, "trips"), tripPayload);
-
-      // Send notification to support team
-      const supportUsersQuery = query(
-        collection(db, "users"),
-        where("role", "==", "support")
-      );
-      const supportUsersSnapshot = await getDocs(supportUsersQuery);
-      if (!supportUsersSnapshot.empty) {
-        const supportUserDoc = supportUsersSnapshot.docs[0];
-        const notificationPayload = {
-          id: new Date().getTime(),
-          type: "info",
-          title: "New Trip for Verification",
-          message: `A new trip from ${
-            userProfile.verification?.fullName || user.phoneNumber
-          } is pending verification.`,
-          read: false,
-          timestamp: new Date().toISOString(),
-        };
-        await updateDoc(doc(db, "users", supportUserDoc.id), {
-          notifications: arrayUnion(notificationPayload),
-        });
-      }
-
-      setShowCreateTrip(false);
-      fetchTrips();
-      resetTripData();
-      setShowNotification({
-        isVisible: true,
-        message: "Trip created successfully and is pending review!",
-        type: "success",
-      });
-    } catch (error) {
-      console.error("Error creating trip:", error);
-      setShowNotification({
-        isVisible: true,
-        message: "Failed to create trip. Please try again.",
         type: "error",
       });
     }
