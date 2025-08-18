@@ -55,18 +55,18 @@ function LoginContent() {
   const setupRecaptcha = () => {
     if (!window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(
-        "recaptcha-container", // 🔹 container ID (string, not auth)
+        auth,
+        "recaptcha-container",
         {
           size: "invisible",
-          callback: (response) => {
-            console.log("Recaptcha resolved:", response);
+          callback: () => {
+            console.log("Recaptcha verified");
           },
           "expired-callback": () => {
             console.log("Recaptcha expired");
             setError("Verification expired. Please try again.");
           },
-        },
-        auth // 🔹 pass auth as the third param
+        }
       );
     }
   };
