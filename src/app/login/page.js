@@ -90,7 +90,7 @@ function LoginContent() {
         auth,
         phoneNumber,
         appVerifier
-      );
+      ).catch((err) => console.log("ERRR", err));
       setVerificationId(confirmationResult.verificationId);
       window.confirmationResult = confirmationResult;
 
