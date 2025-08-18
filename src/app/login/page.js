@@ -46,20 +46,6 @@ function LoginContent() {
   };
 
   useEffect(() => {
-    // Cleanup function to run when component unmounts
-    return () => {
-      if (window.recaptchaVerifier) {
-        try {
-          window.recaptchaVerifier.clear();
-        } catch (error) {
-          console.log("Error clearing recaptcha on unmount:", error);
-        }
-        window.recaptchaVerifier = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     if (resendTimer > 0) {
       const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
       return () => clearTimeout(timer);
@@ -67,37 +53,22 @@ function LoginContent() {
   }, [resendTimer]);
 
   const setupRecaptcha = () => {
-    // Clear any existing recaptcha verifier first
-    if (window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier.clear();
-      } catch (error) {
-        console.log("Error clearing recaptcha:", error);
-      }
-      window.recaptchaVerifier = null;
-    }
-
-    // Clear the recaptcha container
-    const recaptchaContainer = document.getElementById("recaptcha-container");
-    if (recaptchaContainer) {
-      recaptchaContainer.innerHTML = "";
-    }
-
-    // Create new recaptcha verifier
-    window.recaptchaVerifier = new RecaptchaVerifier(
-      auth,
-      "recaptcha-container",
-      {
-        size: "invisible",
-        callback: () => {
-          console.log("Recaptcha verified");
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(
+        "recaptcha-container", // 🔹 container ID (string, not auth)
+        {
+          size: "invisible",
+          callback: (response) => {
+            console.log("Recaptcha resolved:", response);
+          },
+          "expired-callback": () => {
+            console.log("Recaptcha expired");
+            setError("Verification expired. Please try again.");
+          },
         },
-        "expired-callback": () => {
-          console.log("Recaptcha expired");
-          setError("Verification expired. Please try again.");
-        },
-      }
-    );
+        auth // 🔹 pass auth as the third param
+      );
+    }
   };
 
   const sendOTP = async (e) => {
@@ -131,17 +102,14 @@ function LoginContent() {
       setError(error.message || "Failed to send OTP. Please try again.");
       setIsLoading(false);
 
-      // Clean up recaptcha on error
+      // Reset recaptcha on error
       if (window.recaptchaVerifier) {
-        try {
-          window.recaptchaVerifier.clear();
-        } catch (clearError) {
-          console.log("Error clearing recaptcha:", clearError);
-        }
+        window.recaptchaVerifier.clear();
         window.recaptchaVerifier = null;
       }
     }
   };
+
   const verifyOTP = async (e) => {
     e.preventDefault();
     setError("");
@@ -188,20 +156,14 @@ function LoginContent() {
 
   const resendOTP = async () => {
     setOtp("");
+    setStep("phone");
     setError("");
-
-    // Clean up existing recaptcha
     if (window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier.clear();
-      } catch (error) {
-        console.log("Error clearing recaptcha:", error);
-      }
+      window.recaptchaVerifier.clear();
       window.recaptchaVerifier = null;
     }
-
-    setStep("phone");
   };
+
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
