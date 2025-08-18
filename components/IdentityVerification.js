@@ -649,7 +649,7 @@ export default function IdentityVerification() {
                       <p className="mt-2 text-sm text-yellow-600 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-2" />A verification
                         link has been sent to your email. Please check your
-                        inbox and click the link to continue.
+                        inbox or spam folder and click the link to continue.
                       </p>
                     )}
                     {isEmailVerified && (
