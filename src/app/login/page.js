@@ -53,7 +53,7 @@ function LoginContent() {
   }, [resendTimer]);
 
   const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
+    /* if (!window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(
         auth,
         "recaptcha-container",
@@ -68,7 +68,7 @@ function LoginContent() {
           },
         }
       );
-    }
+    } */
   };
 
   const sendOTP = async (e) => {
