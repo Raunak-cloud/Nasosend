@@ -12,7 +12,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthContextProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // Start with true
+  const [loading, setLoading] = useState(true); // Start with trues
   const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
