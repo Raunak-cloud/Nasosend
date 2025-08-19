@@ -9,6 +9,11 @@ import {
   updateDoc,
   serverTimestamp,
   increment,
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  deleteDoc,
 } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePathname } from "next/navigation";
@@ -105,7 +110,36 @@ const VisitorTracker = () => {
     };
   };
 
-  // Track page view
+  // Cleanup old visitors - keep only last 10
+  const cleanupOldVisitors = async () => {
+    try {
+      // Get all visitors ordered by timestamp (oldest first)
+      const visitorsQuery = query(
+        collection(db, "siteVisitors"),
+        orderBy("timestamp", "asc")
+      );
+
+      const snapshot = await getDocs(visitorsQuery);
+      const visitorDocs = snapshot.docs;
+
+      // If we have more than 10 visitors, delete the oldest ones
+      if (visitorDocs.length > 10) {
+        const docsToDelete = visitorDocs.slice(0, visitorDocs.length - 10);
+
+        // Delete old visitor records
+        const deletePromises = docsToDelete.map((doc) => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+
+        console.log(
+          `Cleaned up ${docsToDelete.length} old visitor records. Keeping last 10.`
+        );
+      }
+    } catch (error) {
+      console.error("Error cleaning up old visitors:", error);
+    }
+  };
+
+  // Track page view with cleanup
   const trackPageView = async () => {
     if (!sessionIdRef.current) return;
 
@@ -166,6 +200,14 @@ const VisitorTracker = () => {
 
       lastPathRef.current = pathname;
       pageStartTimeRef.current = Date.now();
+
+      // Run cleanup occasionally (10% chance on each page view)
+      // This ensures cleanup happens regularly but not on every page load
+      const shouldCleanup = Math.random() < 0.1;
+      if (shouldCleanup) {
+        console.log("Running visitor cleanup...");
+        cleanupOldVisitors();
+      }
     } catch (error) {
       console.error("Error tracking page view:", error);
     }
