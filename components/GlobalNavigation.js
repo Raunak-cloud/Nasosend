@@ -154,56 +154,6 @@ export default function GlobalNavigation() {
           </Link>
         )}
 
-        {currentAccountType === "sender" && (
-          <Link
-            href="/sender/shipments"
-            onClick={handleMenuItemClick}
-            className={baseClasses}
-          >
-            {isMobile ? (
-              <svg
-                className={iconContainerClasses}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
-              </svg>
-            ) : (
-              <div
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center mr-3 sm:mr-4 transition-colors flex-shrink-0`}
-                style={{ backgroundColor: colors.lightGray }}
-              >
-                <svg
-                  className="w-4 h-4 sm:w-5 sm:h-5"
-                  style={{ color: colors.primaryRed }}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
-              </div>
-            )}
-            <div className="min-w-0">
-              <span className="font-semibold">My Shipments</span>
-              {!isMobile && (
-                <p className="text-xs text-gray-500">Track your packages</p>
-              )}
-            </div>
-          </Link>
-        )}
-
         {currentAccountType === "traveler" && (
           <Link
             href="/traveler/trips"
