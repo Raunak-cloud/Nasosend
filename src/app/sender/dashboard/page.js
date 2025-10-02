@@ -188,7 +188,6 @@ export default function SenderDashboardPage() {
   if (loading || !user) {
     return null;
   }
-
   const handleSendRequest = async () => {
     if (!selectedTrip) return;
 
@@ -196,12 +195,13 @@ export default function SenderDashboardPage() {
       setShowNotification({
         isVisible: true,
         message:
-          "You have no available tokens. Please purchase more tokens to send requests. Tokens are spent only when the traveler has approved the request",
+          "You have no available tokens. Please purchase more tokens to send requests.",
         type: "warning",
       });
       return;
     }
 
+    // Validation...
     if (
       !requestData.itemDescription ||
       !requestData.weight ||
@@ -252,37 +252,40 @@ export default function SenderDashboardPage() {
 
     setIsSubmitting(true);
     try {
-      // Get the current user's profile information for the request
       const senderName =
         userProfile.verification?.fullName ||
         user.email?.split("@")[0] ||
         "Unknown Sender";
       const senderEmail = user.email;
 
-      // Construct the shipment request payload
-      const requestPayload = {
-        ...requestData,
-        tripId: selectedTrip.id,
-        travelerId: selectedTrip.travelerId,
-        travelerName: selectedTrip.travelerName,
-        travelerPhone: selectedTrip.travelerPhone,
-        travelerEmail: selectedTrip.travelerEmail,
-        departureDate: selectedTrip.departureDate,
-        arrivalDate: selectedTrip.arrivalDate,
-        flightNumber: selectedTrip.flightNumber,
-        pricePerKg: selectedTrip.pricePerKg,
-        availableWeight: selectedTrip.availableWeight,
-        senderId: user.uid,
-        senderName: senderName,
-        senderEmail: senderEmail,
-        status: "pending",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
+      // Call the /api/send-request endpoint
+      const response = await fetch("/api/send-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestData,
+          selectedTrip,
+          senderId: user.uid,
+          senderName,
+          senderEmail,
+        }),
+      });
 
-      await addDoc(collection(db, "shipmentRequests"), requestPayload);
+      const result = await response.json();
 
-      // 1. Create a notification for the traveler
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send request");
+      }
+
+      // Update local token count with the value returned from API
+      setTokenInfo((prev) => ({
+        ...prev,
+        availableTokens: result.tokensRemaining,
+      }));
+
+      // Send notification to traveler
       const travelerRef = doc(db, "users", selectedTrip.travelerId);
       const travelerDoc = await getDoc(travelerRef);
       const currentTravelerNotifications =
@@ -307,24 +310,17 @@ export default function SenderDashboardPage() {
         notifications: updatedTravelerNotifications,
       });
 
-      // 2. Send an email to the traveler
-      const emailPayload = {
-        to: selectedTrip.travelerEmail,
-        subject: "New Shipment Request on Nasosend",
-        text: `Hello ${selectedTrip.travelerName},\n\nYou have a new shipment request from ${senderName} for a ${requestData.weight}kg package. Please check your dashboard for more details.\n\nBest regards,\nTeam Nasosend`,
-        html: `<p>Hello ${selectedTrip.travelerName},</p><p>You have a new shipment request from **${senderName}** for a ${requestData.weight}kg package.</p><p>Please log in to your dashboard to review and respond to the request.</p><p>Best regards,<br/>Team Nasosend</p>`,
-      };
-
+      // Send email to traveler
       await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(emailPayload),
+        body: JSON.stringify({
+          to: selectedTrip.travelerEmail,
+          subject: "New Shipment Request on Nasosend",
+          text: `Hello ${selectedTrip.travelerName},\n\nYou have a new shipment request from ${senderName} for a ${requestData.weight}kg package. Please check your dashboard for more details.\n\nBest regards,\nTeam Nasosend`,
+          html: `<p>Hello ${selectedTrip.travelerName},</p><p>You have a new shipment request from **${senderName}** for a ${requestData.weight}kg package.</p><p>Please log in to your dashboard to review and respond to the request.</p><p>Best regards,<br/>Team Nasosend</p>`,
+        }),
       });
-
-      setTokenInfo((prev) => ({
-        ...prev,
-        availableTokens: prev.availableTokens - 1,
-      }));
 
       setShowRequestModal(false);
       setSelectedTrip(null);
@@ -341,7 +337,7 @@ export default function SenderDashboardPage() {
 
       setShowNotification({
         isVisible: true,
-        message: "Request sent successfully! The traveler has been notified.",
+        message: `Request sent successfully! 1 token deducted. You have ${result.tokensRemaining} tokens remaining.`,
         type: "success",
       });
 

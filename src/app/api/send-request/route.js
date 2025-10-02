@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase"; // Assuming you have a server-side Firebase config file
+import { db } from "@/lib/firebase";
 import {
   collection,
   addDoc,
@@ -7,32 +7,22 @@ import {
   getDocs,
   query,
   where,
+  doc,
+  updateDoc,
+  increment,
+  getDoc,
 } from "firebase/firestore";
 
-/**
- * Handles POST requests to create a new shipment request.
- *
- * This API endpoint receives shipment data from the client, validates it,
- * and securely saves it to the 'shipmentRequests' collection in Firestore.
- * It also checks for the traveler's available weight before creating the request.
- *
- * @param {Request} request The incoming HTTP request.
- * @returns {NextResponse} A JSON response indicating success or failure.
- */
 export async function POST(request) {
+  console.log("=== START SHIPMENT REQUEST ===");
+
   try {
-    // Parse the incoming JSON request body
     const { requestData, selectedTrip, senderId, senderName, senderEmail } =
       await request.json();
 
-    console.log("📤 API received a new shipment request:", {
-      selectedTrip,
-      requestData,
-    });
+    console.log("1. Received data:", { senderId });
 
-    // --- Validation and Pre-checks ---
-
-    // Basic data validation
+    // Basic validation
     if (
       !requestData ||
       !selectedTrip ||
@@ -40,113 +30,101 @@ export async function POST(request) {
       !senderName ||
       !senderEmail
     ) {
+      console.log("2. Validation failed: Missing fields");
       return NextResponse.json(
         { error: "Missing required fields in the request body." },
         { status: 400 }
       );
     }
 
-    // Check for required request data fields
-    if (
-      !requestData.itemDescription ||
-      !requestData.weight ||
-      !requestData.recipientName ||
-      !requestData.recipientAddress
-    ) {
+    // Check user tokens BEFORE
+    console.log("3. Checking user tokens BEFORE...");
+    const userRef = doc(db, "users", senderId);
+    const userDocBefore = await getDoc(userRef);
+
+    if (!userDocBefore.exists()) {
+      console.log("4. ERROR: User not found");
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
+
+    const userDataBefore = userDocBefore.data();
+    const tokensBefore = userDataBefore.tokens || 0;
+    console.log("5. Tokens BEFORE:", tokensBefore);
+
+    if (tokensBefore < 1) {
+      console.log("6. ERROR: Insufficient tokens");
       return NextResponse.json(
-        { error: "Please fill in all required fields." },
+        { error: `Insufficient tokens. Current: ${tokensBefore}` },
         { status: 400 }
       );
     }
 
+    // Create shipment request (simplified for testing)
     const requestedWeight = parseFloat(requestData.weight);
-    if (isNaN(requestedWeight) || requestedWeight <= 0) {
-      return NextResponse.json(
-        { error: "Invalid weight provided." },
-        { status: 400 }
-      );
-    }
-
-    // Fetch the trip again from Firestore to get the most up-to-date 'availableWeight'
-    // This prevents race conditions where multiple users could request the same weight simultaneously.
-    const tripQuery = query(
-      collection(db, "trips"),
-      where("__name__", "==", selectedTrip.id)
-    );
-    const tripSnapshot = await getDocs(tripQuery);
-
-    if (tripSnapshot.empty) {
-      return NextResponse.json({ error: "Trip not found." }, { status: 404 });
-    }
-
-    const tripDoc = tripSnapshot.docs[0];
-    const tripData = tripDoc.data();
-    const currentAvailableWeight = tripData.availableWeight;
-
-    if (requestedWeight > currentAvailableWeight) {
-      return NextResponse.json(
-        {
-          error: `Requested weight (${requestedWeight}kg) exceeds the available weight (${currentAvailableWeight}kg).`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // --- Prepare and Save the Request ---
-
     const shipmentRequest = {
-      // Data from the client request
       ...requestData,
       senderId,
       senderName,
       senderEmail,
-
-      // Data from the selected trip, now validated and fetched from Firestore
       tripId: selectedTrip.id,
-      travelerId: selectedTrip.travelerId,
-      travelerName: selectedTrip.travelerName,
-      travelerPhone: selectedTrip.travelerPhone,
-      departureDate: selectedTrip.departureDate,
-      arrivalDate: selectedTrip.arrivalDate,
-      departureCity: selectedTrip.departureCity,
-      arrivalCity: selectedTrip.arrivalCity,
-      airline: selectedTrip.airline || "",
-      flightNumber: selectedTrip.flightNumber || "",
-
-      // Request-specific details
       weight: requestedWeight,
-      quantity: parseInt(requestData.quantity),
-      status: "pending", // Initial status is pending
-      totalCost: requestedWeight * parseFloat(selectedTrip.pricePerKg),
+      status: "pending",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
-    console.log(
-      "💾 Saving new shipment request to Firestore:",
-      shipmentRequest
-    );
-
-    // Add the document to the 'shipmentRequests' collection
+    console.log("7. Creating shipment request...");
     const docRef = await addDoc(
       collection(db, "shipmentRequests"),
       shipmentRequest
     );
+    console.log("8. Shipment request created with ID:", docRef.id);
 
-    console.log("✅ Shipment request saved with ID:", docRef.id);
+    // DEDUCT TOKEN
+    console.log("9. ATTEMPTING TO DEDUCT TOKEN...");
+    console.log("10. User ref path:", userRef.path);
+    console.log("11. Calling updateDoc with increment(-1)...");
 
-    // Return a success response with the ID of the newly created document
+    try {
+      await updateDoc(userRef, {
+        tokens: increment(-1),
+        updatedAt: serverTimestamp(),
+      });
+      console.log("12. ✅ updateDoc completed successfully");
+    } catch (updateError) {
+      console.error("13. ❌ ERROR in updateDoc:", updateError);
+      console.error("14. Error code:", updateError.code);
+      console.error("15. Error message:", updateError.message);
+      throw updateError;
+    }
+
+    // Check tokens AFTER
+    console.log("16. Checking tokens AFTER...");
+    const userDocAfter = await getDoc(userRef);
+    const userDataAfter = userDocAfter.data();
+    const tokensAfter = userDataAfter.tokens || 0;
+    console.log("17. Tokens AFTER:", tokensAfter);
+    console.log("18. Token change:", tokensBefore - tokensAfter);
+
+    console.log("=== END SHIPMENT REQUEST SUCCESS ===");
+
     return NextResponse.json(
       {
         success: true,
         message: "Shipment request successfully sent.",
         requestId: docRef.id,
+        tokensBefore,
+        tokensAfter,
+        tokenChange: tokensBefore - tokensAfter,
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("❌ Error processing shipment request:", error);
-    // Return a generic server error response
+    console.error("=== ERROR IN SHIPMENT REQUEST ===");
+    console.error("Error:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+
     return NextResponse.json(
       { error: "Failed to send request. Please try again." },
       { status: 500 }
