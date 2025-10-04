@@ -1,4 +1,3 @@
-// app/page.js
 "use client";
 
 import { useState } from "react";
@@ -12,6 +11,7 @@ import {
   Handshake,
   DollarSign,
   CheckCircle,
+  ArrowRight,
 } from "lucide-react";
 
 export default function HomePage() {
@@ -19,7 +19,6 @@ export default function HomePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // A more professional, globally defined color palette
   const colors = {
     primaryRed: "#DC143C",
     primaryRedHover: "#B01030",
@@ -51,19 +50,12 @@ export default function HomePage() {
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
         >
           <div
-            className="rounded-full h-12 w-12 border-4 border-gray-200 border-t-primaryBlue"
+            className="rounded-full h-12 w-12 border-4"
             style={{
               borderColor: colors.borderGray,
               borderTopColor: colors.primaryBlue,
             }}
           ></div>
-          <motion.div
-            className="absolute inset-0 flex items-center justify-center"
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 1, repeat: Infinity }}
-          >
-            <span className="text-lg">📦</span>
-          </motion.div>
         </motion.div>
       </div>
     );
@@ -73,558 +65,384 @@ export default function HomePage() {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
+      transition: { staggerChildren: 0.08 },
     },
   };
 
   const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
+    hidden: { y: 15, opacity: 0 },
     visible: {
       y: 0,
       opacity: 1,
-      transition: { duration: 0.5 },
+      transition: { duration: 0.4 },
     },
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-inter text-darkGray">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden bg-white">
+    <div className="min-h-screen bg-white font-inter">
+      {/* Hero Section - Compact */}
+      <div
+        className="relative overflow-hidden bg-white border-b"
+        style={{ borderColor: colors.borderGray }}
+      >
         <motion.div
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24 text-center"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 text-center"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          <motion.div className="mb-6" variants={itemVariants}>
-            <h1
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-primaryBlue leading-tight mb-4"
-              style={{ color: colors.primaryBlue }}
-            >
-              Community driven shipping
-            </h1>
-          </motion.div>
-
-          <motion.div
-            className="flex items-center justify-center gap-4 sm:gap-6 mb-8"
+          <motion.h1
+            className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 leading-tight"
+            style={{ color: colors.primaryBlue }}
             variants={itemVariants}
           >
-            <motion.div
-              className="bg-lighterBlue rounded-2xl px-6 py-3 shadow-md border border-borderGray"
+            Community Driven Shipping
+          </motion.h1>
+
+          {/* Route Display - Compact */}
+          <motion.div
+            className="flex items-center justify-center gap-3 sm:gap-4 mb-6"
+            variants={itemVariants}
+          >
+            <div
+              className="rounded-xl px-4 py-2 shadow-sm border"
               style={{
                 backgroundColor: colors.lighterBlue,
                 borderColor: colors.borderGray,
               }}
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: "spring", stiffness: 300 }}
             >
               <span
-                className="text-primaryBlue text-lg sm:text-2xl md:text-3xl font-semibold flex items-center gap-2"
+                className="text-base sm:text-xl font-semibold flex items-center gap-1.5"
                 style={{ color: colors.primaryBlue }}
               >
                 🇦🇺 Australia
               </span>
-            </motion.div>
+            </div>
 
             <motion.div
-              className="flex items-center"
               animate={{ rotateY: [0, 180, 0] }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             >
               <div
-                className="bg-white rounded-full p-2 shadow-sm border border-borderGray"
+                className="rounded-full p-1.5 shadow-sm border"
                 style={{
                   backgroundColor: colors.white,
                   borderColor: colors.borderGray,
                 }}
               >
-                <Plane
-                  className="w-5 h-5 sm:w-8 sm:h-8 text-darkGray"
-                  style={{ color: colors.darkGray }}
-                />
+                <Plane className="w-5 h-5" style={{ color: colors.darkGray }} />
               </div>
             </motion.div>
 
-            <motion.div
-              className="bg-lighterRed rounded-2xl px-6 py-3 shadow-md border border-borderGray"
+            <div
+              className="rounded-xl px-4 py-2 shadow-sm border"
               style={{
                 backgroundColor: colors.lighterRed,
                 borderColor: colors.borderGray,
               }}
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: "spring", stiffness: 300 }}
             >
               <span
-                className="text-primaryRed text-lg sm:text-2xl md:text-3xl font-semibold flex items-center gap-2"
+                className="text-base sm:text-xl font-semibold flex items-center gap-1.5"
                 style={{ color: colors.primaryRed }}
               >
                 🇳🇵 Nepal
               </span>
-            </motion.div>
+            </div>
           </motion.div>
 
-          <motion.div
-            className="bg-white rounded-2xl p-6 mx-auto max-w-4xl mb-8 shadow-sm border border-borderGray"
-            style={{
-              backgroundColor: colors.white,
-              borderColor: colors.borderGray,
-            }}
+          {/* Description - Compact */}
+          <motion.p
+            className="text-sm sm:text-base text-gray-600 max-w-3xl mx-auto mb-6 leading-relaxed"
             variants={itemVariants}
           >
-            <p
-              className="text-base sm:text-lg text-darkGray leading-relaxed"
-              style={{ color: colors.darkGray }}
-            >
-              Nasosend is a crowdshipping platform that connects people wanting
-              to send items between Australia and Nepal with verified travelers
-              who have available luggage space.
-            </p>
-          </motion.div>
+            Connect people wanting to send items between Australia and Nepal
+            with verified travelers who have available luggage space.
+          </motion.p>
 
-          {/* Community Stats */}
+          {/* Stats - Compact Inline */}
           <motion.div
-            className="flex flex-wrap justify-center gap-6 sm:gap-8 mb-10"
-            variants={containerVariants}
+            className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-6"
+            variants={itemVariants}
           >
             {[
-              { label: "Verified", sublabel: "Senders" },
-              { label: "Verified", sublabel: "Travelers" },
-              { label: "Community", sublabel: "Built" },
+              {
+                icon: CheckCircle,
+                label: "Verified Senders",
+                color: colors.gold,
+              },
+              {
+                icon: CheckCircle,
+                label: "Verified Travelers",
+                color: colors.gold,
+              },
+              {
+                icon: Handshake,
+                label: "Community Built",
+                color: colors.primaryBlue,
+              },
             ].map((stat, index) => (
-              <motion.div
+              <div
                 key={index}
-                className="bg-white rounded-xl p-4 shadow-sm border border-borderGray relative"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs sm:text-sm font-medium"
                 style={{
-                  backgroundColor: colors.white,
+                  backgroundColor: colors.lightGray,
                   borderColor: colors.borderGray,
+                  color: colors.darkGray,
                 }}
-                variants={itemVariants}
-                whileHover={{ y: -2 }}
-                transition={{ type: "spring", stiffness: 300 }}
               >
-                <div
-                  className="flex items-center justify-center text-lg sm:text-xl font-bold text-darkGray mb-1"
-                  style={{ color: colors.darkGray }}
-                >
-                  {stat.label}
-                  {stat.label === "Verified" && (
-                    <div
-                      className="w-5 h-5 ml-2 text-gold"
-                      style={{ color: colors.gold }}
-                    >
-                      <CheckCircle className="w-full h-full" />
-                    </div>
-                  )}
-                  {stat.label === "Community" && (
-                    <div
-                      className="w-5 h-5 ml-2 text-primaryBlue"
-                      style={{ color: colors.primaryBlue }}
-                    >
-                      <Handshake className="w-full h-full" />
-                    </div>
-                  )}
-                </div>
-                <div className="text-xs sm:text-sm text-gray-600">
-                  {stat.sublabel}
-                </div>
-              </motion.div>
+                <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
+                {stat.label}
+              </div>
             ))}
           </motion.div>
 
-          {/* Get Started Button */}
-          <motion.div className="mb-6" variants={itemVariants}>
-            <motion.button
-              onClick={handleGetStarted}
-              className="group px-8 sm:px-10 py-4 sm:py-5 bg-primaryRed text-white text-base sm:text-lg font-semibold rounded-2xl shadow-xl transition-all duration-300"
-              style={{ backgroundColor: colors.primaryRed }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <span className="flex items-center gap-2">
-                {user ? "Go to Dashboard" : "Get Started"}
-                <svg
-                  className="w-5 h-5 transition-transform group-hover:translate-x-1"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
-                </svg>
-              </span>
-            </motion.button>
-          </motion.div>
-
-          <motion.div
-            className="bg-lighterBlue rounded-full px-6 py-2 inline-block shadow-sm border border-borderGray"
-            style={{
-              backgroundColor: colors.lighterBlue,
-              borderColor: colors.borderGray,
-            }}
+          {/* CTA Button - Compact */}
+          <motion.button
+            onClick={handleGetStarted}
+            className="group px-6 sm:px-8 py-3 text-white text-sm sm:text-base font-semibold rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl"
+            style={{ backgroundColor: colors.primaryRed }}
             variants={itemVariants}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <p className="text-xs sm:text-sm text-gray-600">
-              {user
-                ? "Welcome back! Access your dashboard to continue."
-                : "Be among the first to experience seamless crowdshipping"}
-            </p>
-          </motion.div>
+            <span className="flex items-center gap-2">
+              {user ? "Go to Dashboard" : "Get Started"}
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </span>
+          </motion.button>
         </motion.div>
       </div>
 
-      {/* How It Works */}
-      <motion.div
-        className="max-w-7xl mx-auto px-4 py-16 sm:py-20"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
-        <motion.div
-          className="text-center mb-12"
-          initial={{ y: 30, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6 }}
-          viewport={{ once: true }}
-        >
-          <h2
-            className="text-2xl sm:text-3xl font-bold text-darkGray mb-4"
-            style={{ color: colors.darkGray }}
-          >
-            How It Works
-          </h2>
-          <p className="text-gray-600">A simple and straightforward process</p>
-        </motion.div>
-
-        <div className="grid gap-8 max-w-6xl mx-auto lg:grid-cols-2">
-          {/* For Senders */}
-          <motion.div
-            className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 border border-borderGray"
-            style={{
-              backgroundColor: colors.white,
-              borderColor: colors.borderGray,
-            }}
-            initial={{ x: -50, opacity: 0 }}
-            whileInView={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -3 }}
-          >
-            <div className="flex items-center mb-6">
-              <div
-                className="w-12 h-12 bg-lighterRed rounded-xl flex items-center justify-center mr-4 shadow-sm"
-                style={{ backgroundColor: colors.lighterRed }}
-              >
-                <Users
-                  className="w-6 h-6 text-primaryRed"
-                  style={{ color: colors.primaryRed }}
-                />
-              </div>
-              <div>
-                <h3
-                  className="text-lg font-bold text-darkGray"
-                  style={{ color: colors.darkGray }}
-                >
-                  For Senders
-                </h3>
-                <p className="text-sm text-gray-600 font-medium">
-                  Send packages safely
-                </p>
-              </div>
-            </div>
-            <ol className="space-y-4">
-              {[
-                "Browse verified travelers heading to Nepal",
-                "Send a request with your package details",
-                "Connect with a traveler for pickup",
-              ].map((step, index) => (
-                <motion.li
-                  key={index}
-                  className="flex items-start p-3 rounded-xl bg-lightGray border border-borderGray"
-                  style={{
-                    backgroundColor: colors.lightGray,
-                    borderColor: colors.borderGray,
-                  }}
-                  initial={{ x: -20, opacity: 0 }}
-                  whileInView={{ x: 0, opacity: 1 }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <div
-                    className="font-bold text-white mr-3 flex-shrink-0 bg-primaryRed rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                    style={{ backgroundColor: colors.primaryRed }}
-                  >
-                    {index + 1}
-                  </div>
-                  <span
-                    className="text-darkGray text-sm"
-                    style={{ color: colors.darkGray }}
-                  >
-                    {step}
-                  </span>
-                </motion.li>
-              ))}
-            </ol>
-          </motion.div>
-
-          {/* For Travelers */}
-          <motion.div
-            className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 border border-borderGray"
-            style={{
-              backgroundColor: colors.white,
-              borderColor: colors.borderGray,
-            }}
-            initial={{ x: 50, opacity: 0 }}
-            whileInView={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -3 }}
-          >
-            <div className="flex items-center mb-6">
-              <div
-                className="w-12 h-12 bg-lighterBlue rounded-xl flex items-center justify-center mr-4 shadow-sm"
-                style={{ backgroundColor: colors.lighterBlue }}
-              >
-                <Plane
-                  className="w-6 h-6 text-primaryBlue"
-                  style={{ color: colors.primaryBlue }}
-                />
-              </div>
-              <div>
-                <h3
-                  className="text-lg font-bold text-darkGray"
-                  style={{ color: colors.darkGray }}
-                >
-                  For Travelers
-                </h3>
-                <p className="text-sm text-gray-600 font-medium">
-                  Earn while traveling
-                </p>
-              </div>
-            </div>
-            <ol className="space-y-4">
-              {[
-                "Get verified with ID and flight details",
-                "Post your trip with available capacity",
-                "Accept package requests from senders",
-                "Deliver and earn money",
-              ].map((step, index) => (
-                <motion.li
-                  key={index}
-                  className="flex items-start p-3 rounded-xl bg-lightGray border border-borderGray"
-                  style={{
-                    backgroundColor: colors.lightGray,
-                    borderColor: colors.borderGray,
-                  }}
-                  initial={{ x: 20, opacity: 0 }}
-                  whileInView={{ x: 0, opacity: 1 }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <div
-                    className="font-bold text-white mr-3 flex-shrink-0 bg-primaryBlue rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                    style={{ backgroundColor: colors.primaryBlue }}
-                  >
-                    {index + 1}
-                  </div>
-                  <span
-                    className="text-darkGray text-sm"
-                    style={{ color: colors.darkGray }}
-                  >
-                    {step}
-                  </span>
-                </motion.li>
-              ))}
-            </ol>
-          </motion.div>
-        </div>
-      </motion.div>
-
-      {/* Features */}
-      <motion.div
-        className="bg-gray-50 py-16 sm:py-20"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
-        <div className="max-w-7xl mx-auto px-4">
-          <motion.div
-            className="text-center mb-12"
-            initial={{ y: 30, opacity: 0 }}
-            whileInView={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-          >
+      {/* How It Works - Compact */}
+      <div className="bg-gray-50 py-10 sm:py-12 lg:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
             <h2
-              className="text-2xl sm:text-3xl font-bold text-darkGray mb-4"
+              className="text-2xl sm:text-3xl font-bold mb-2"
+              style={{ color: colors.darkGray }}
+            >
+              How It Works
+            </h2>
+            <p className="text-sm text-gray-600">
+              Simple and straightforward process
+            </p>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2 max-w-5xl mx-auto">
+            {/* For Senders */}
+            <motion.div
+              className="bg-white rounded-xl shadow-md p-5 sm:p-6 border"
+              style={{ borderColor: colors.borderGray }}
+              initial={{ x: -30, opacity: 0 }}
+              whileInView={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+              viewport={{ once: true }}
+            >
+              <div className="flex items-center mb-4">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mr-3"
+                  style={{ backgroundColor: colors.lighterRed }}
+                >
+                  <Users
+                    className="w-5 h-5"
+                    style={{ color: colors.primaryRed }}
+                  />
+                </div>
+                <div>
+                  <h3
+                    className="text-base font-bold"
+                    style={{ color: colors.darkGray }}
+                  >
+                    For Senders
+                  </h3>
+                  <p className="text-xs text-gray-600">Send packages safely</p>
+                </div>
+              </div>
+              <ol className="space-y-2.5">
+                {[
+                  "Browse verified travelers",
+                  "Send package request",
+                  "Connect for pickup",
+                ].map((step, index) => (
+                  <li
+                    key={index}
+                    className="flex items-start p-2.5 rounded-lg border"
+                    style={{
+                      backgroundColor: colors.lightGray,
+                      borderColor: colors.borderGray,
+                    }}
+                  >
+                    <div
+                      className="font-bold text-white mr-2.5 flex-shrink-0 rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                      style={{ backgroundColor: colors.primaryRed }}
+                    >
+                      {index + 1}
+                    </div>
+                    <span
+                      className="text-xs sm:text-sm"
+                      style={{ color: colors.darkGray }}
+                    >
+                      {step}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </motion.div>
+
+            {/* For Travelers */}
+            <motion.div
+              className="bg-white rounded-xl shadow-md p-5 sm:p-6 border"
+              style={{ borderColor: colors.borderGray }}
+              initial={{ x: 30, opacity: 0 }}
+              whileInView={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+              viewport={{ once: true }}
+            >
+              <div className="flex items-center mb-4">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center mr-3"
+                  style={{ backgroundColor: colors.lighterBlue }}
+                >
+                  <Plane
+                    className="w-5 h-5"
+                    style={{ color: colors.primaryBlue }}
+                  />
+                </div>
+                <div>
+                  <h3
+                    className="text-base font-bold"
+                    style={{ color: colors.darkGray }}
+                  >
+                    For Travelers
+                  </h3>
+                  <p className="text-xs text-gray-600">Earn while traveling</p>
+                </div>
+              </div>
+              <ol className="space-y-2.5">
+                {[
+                  "Get verified with ID",
+                  "Post your trip details",
+                  "Accept package requests",
+                  "Deliver and earn",
+                ].map((step, index) => (
+                  <li
+                    key={index}
+                    className="flex items-start p-2.5 rounded-lg border"
+                    style={{
+                      backgroundColor: colors.lightGray,
+                      borderColor: colors.borderGray,
+                    }}
+                  >
+                    <div
+                      className="font-bold text-white mr-2.5 flex-shrink-0 rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                      style={{ backgroundColor: colors.primaryBlue }}
+                    >
+                      {index + 1}
+                    </div>
+                    <span
+                      className="text-xs sm:text-sm"
+                      style={{ color: colors.darkGray }}
+                    >
+                      {step}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+
+      {/* Features - Compact */}
+      <div className="bg-white py-10 sm:py-12 lg:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2
+              className="text-2xl sm:text-3xl font-bold mb-2"
               style={{ color: colors.darkGray }}
             >
               Why Choose Nasosend?
             </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Join a trusted community with industry-leading security and
-              transparent pricing
+            <p className="text-sm text-gray-600">
+              Trusted community with security and transparency
             </p>
-          </motion.div>
+          </div>
 
-          <div className="grid gap-8 md:grid-cols-3">
-            {/* Feature: Secure & Verified */}
-            <motion.div
-              className="text-center p-6 rounded-2xl bg-white shadow-lg border border-borderGray"
-              style={{
-                backgroundColor: colors.white,
-                borderColor: colors.borderGray,
-              }}
-              initial={{ y: 50, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              viewport={{ once: true }}
-              whileHover={{ y: -5 }}
-            >
+          <div className="grid gap-5 sm:gap-6 md:grid-cols-3 max-w-5xl mx-auto">
+            {[
+              {
+                icon: Shield,
+                title: "Secure & Verified",
+                description:
+                  "All travelers verified with government ID and flight documentation.",
+                badge: "100% ID Verified",
+                bgColor: colors.lighterBlue,
+                iconColor: colors.primaryBlue,
+                badgeColor: colors.primaryBlue,
+              },
+              {
+                icon: Handshake,
+                title: "Trusted Community",
+                description:
+                  "Verified members with ratings and reviews for peace of mind.",
+                badge: "5-Star Rating",
+                bgColor: colors.gold,
+                iconColor: colors.white,
+                badgeColor: colors.gold,
+              },
+              {
+                icon: DollarSign,
+                title: "Fair Pricing",
+                description:
+                  "Transparent pricing with no hidden fees. Pay directly to travelers.",
+                badge: "0% Platform Fees",
+                bgColor: colors.lighterRed,
+                iconColor: colors.primaryRed,
+                badgeColor: colors.primaryRed,
+              },
+            ].map((feature, index) => (
               <motion.div
-                className="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4 bg-lighterBlue"
-                style={{ backgroundColor: colors.lighterBlue }}
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300 }}
+                key={index}
+                className="text-center p-5 rounded-xl bg-white shadow-md border"
+                style={{ borderColor: colors.borderGray }}
+                initial={{ y: 30, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
               >
-                <Shield
-                  className="w-8 h-8 text-primaryBlue"
-                  style={{ color: colors.primaryBlue }}
-                />
-              </motion.div>
-              <h3
-                className="text-lg font-bold text-darkGray mb-3"
-                style={{ color: colors.darkGray }}
-              >
-                Secure & Verified
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                All travelers are verified with government ID and flight
-                documentation for maximum security.
-              </p>
-              <div
-                className="rounded-full px-3 py-1 inline-block bg-white border border-borderGray"
-                style={{
-                  backgroundColor: colors.white,
-                  borderColor: colors.borderGray,
-                }}
-              >
-                <span className="font-medium text-xs text-primaryBlue">
-                  100% ID Verified
-                </span>
-              </div>
-            </motion.div>
-
-            {/* Feature: Trusted Community */}
-            <motion.div
-              className="text-center p-6 rounded-2xl bg-white shadow-lg border border-borderGray"
-              style={{
-                backgroundColor: colors.white,
-                borderColor: colors.borderGray,
-              }}
-              initial={{ y: 50, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              viewport={{ once: true }}
-              whileHover={{ y: -5 }}
-            >
-              <motion.div
-                className="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4 bg-gold"
-                style={{ backgroundColor: colors.gold }}
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <Handshake
-                  className="w-8 h-8 text-white"
-                  style={{ color: colors.white }}
-                />
-              </motion.div>
-              <h3
-                className="text-lg font-bold text-darkGray mb-3"
-                style={{ color: colors.darkGray }}
-              >
-                Trusted Community
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                Connect with verified members of the Australia-Nepal community
-                with ratings and reviews.
-              </p>
-              <div
-                className="rounded-full px-3 py-1 inline-block bg-white border border-borderGray"
-                style={{
-                  backgroundColor: colors.white,
-                  borderColor: colors.borderGray,
-                }}
-              >
-                <span
-                  className="font-medium text-xs text-gold"
-                  style={{ color: colors.gold }}
+                <div
+                  className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-3"
+                  style={{ backgroundColor: feature.bgColor }}
                 >
-                  5-Star Rating System
-                </span>
-              </div>
-            </motion.div>
-
-            {/* Feature: Fair Pricing */}
-            <motion.div
-              className="text-center p-6 rounded-2xl bg-white shadow-lg border border-borderGray"
-              style={{
-                backgroundColor: colors.white,
-                borderColor: colors.borderGray,
-              }}
-              initial={{ y: 50, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              viewport={{ once: true }}
-              whileHover={{ y: -5 }}
-            >
-              <motion.div
-                className="inline-flex items-center justify-center w-16 h-16 rounded-xl mb-4 bg-lighterRed"
-                style={{ backgroundColor: colors.lighterRed }}
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <DollarSign
-                  className="w-8 h-8 text-primaryRed"
-                  style={{ color: colors.primaryRed }}
-                />
-              </motion.div>
-              <h3
-                className="text-lg font-bold text-darkGray mb-3"
-                style={{ color: colors.darkGray }}
-              >
-                Fair Pricing
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                Transparent pricing with no hidden fees. Pay directly to
-                travelers with secure payment protection.
-              </p>
-              <div
-                className="rounded-full px-3 py-1 inline-block bg-white border border-borderGray"
-                style={{
-                  backgroundColor: colors.white,
-                  borderColor: colors.borderGray,
-                }}
-              >
-                <span
-                  className="font-medium text-xs text-primaryRed"
-                  style={{ color: colors.primaryRed }}
+                  <feature.icon
+                    className="w-6 h-6"
+                    style={{ color: feature.iconColor }}
+                  />
+                </div>
+                <h3
+                  className="text-base font-bold mb-2"
+                  style={{ color: colors.darkGray }}
                 >
-                  0% Platform Fees
-                </span>
-              </div>
-            </motion.div>
+                  {feature.title}
+                </h3>
+                <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                  {feature.description}
+                </p>
+                <div
+                  className="rounded-full px-3 py-1 inline-block border text-xs font-medium"
+                  style={{
+                    backgroundColor: colors.white,
+                    borderColor: colors.borderGray,
+                    color: feature.badgeColor,
+                  }}
+                >
+                  {feature.badge}
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

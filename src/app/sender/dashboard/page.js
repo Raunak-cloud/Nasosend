@@ -154,6 +154,66 @@ export default function SenderDashboardPage() {
     }
   }, [user?.uid]);
 
+  // Update the filteredTrips to include request status
+  const [tripRequestStatus, setTripRequestStatus] = useState({});
+
+  const filteredTrips = availableTrips.filter((trip) => {
+    const priceMatch = trip.pricePerKg <= filters.pricePerKg;
+    const itemMatch =
+      filters.itemPreferences.length === 0 ||
+      filters.itemPreferences.every((item) => trip.allowedItems.includes(item));
+    const pickupCityMatch =
+      filters.pickupCities.length === 0 ||
+      filters.pickupCities.some((city) => trip.pickupCities.includes(city));
+
+    const genderMatch =
+      !filters.genderPreference ||
+      filters.genderPreference === "Any" ||
+      trip.travelerGender === filters.genderPreference;
+
+    const arrivalDateMatch =
+      !filters.arrivalDate ||
+      new Date(trip.arrivalDate) >= new Date(filters.arrivalDate);
+
+    return (
+      priceMatch &&
+      itemMatch &&
+      pickupCityMatch &&
+      genderMatch &&
+      arrivalDateMatch
+    );
+  });
+  // Add useEffect to check request status for all trips
+  useEffect(() => {
+    const checkAllTripRequests = async () => {
+      if (!user?.uid || filteredTrips.length === 0) return;
+
+      const statusMap = {};
+      for (const trip of filteredTrips) {
+        const hasRequest = await checkExistingRequest(trip.id);
+        statusMap[trip.id] = hasRequest;
+      }
+      setTripRequestStatus(statusMap);
+    };
+
+    checkAllTripRequests();
+  }, [filteredTrips, user?.uid]);
+
+  const checkExistingRequest = async (tripId) => {
+    try {
+      const q = query(
+        collection(db, "shipmentRequests"),
+        where("senderId", "==", user.uid),
+        where("tripId", "==", tripId),
+        where("status", "in", ["pending", "accepted"])
+      );
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error("Error checking existing request:", error);
+      return false;
+    }
+  };
   const fetchMyRequests = useCallback(async () => {
     if (!user?.uid) return;
 
@@ -376,33 +436,6 @@ export default function SenderDashboardPage() {
       setFilters((prevFilters) => ({ ...prevFilters, [filterName]: value }));
     }
   };
-
-  const filteredTrips = availableTrips.filter((trip) => {
-    const priceMatch = trip.pricePerKg <= filters.pricePerKg;
-    const itemMatch =
-      filters.itemPreferences.length === 0 ||
-      filters.itemPreferences.every((item) => trip.allowedItems.includes(item));
-    const pickupCityMatch =
-      filters.pickupCities.length === 0 ||
-      filters.pickupCities.some((city) => trip.pickupCities.includes(city));
-
-    const genderMatch =
-      !filters.genderPreference ||
-      filters.genderPreference === "Any" ||
-      trip.travelerGender === filters.genderPreference;
-
-    const arrivalDateMatch =
-      !filters.arrivalDate ||
-      new Date(trip.arrivalDate) >= new Date(filters.arrivalDate);
-
-    return (
-      priceMatch &&
-      itemMatch &&
-      pickupCityMatch &&
-      genderMatch &&
-      arrivalDateMatch
-    );
-  });
 
   const toggleItems = (tripId) => {
     setExpandedItems((prev) => ({
@@ -1092,26 +1125,40 @@ export default function SenderDashboardPage() {
                             </div>
                           </div>
                         </div>
-
-                        <button
-                          onClick={() => {
-                            if (!userProfile?.verified) {
-                              setShowNotification({
-                                isVisible: true,
-                                message:
-                                  "You need to verify your identity before sending requests. Please complete the verification process first.",
-                                type: "warning",
-                              });
-                              return;
-                            }
-                            setSelectedTrip(trip);
-                            setShowRequestModal(true);
-                          }}
-                          className="mt-4 w-full py-2.5 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
-                          disabled={!userProfile?.verified}
-                        >
-                          Send Request
-                        </button>
+                        {/* Replace the existing Send Request button with this */}
+                        <div className="mt-4">
+                          {tripRequestStatus[trip.id] ? (
+                            <div className="w-full py-2.5 rounded-lg text-sm font-medium text-center bg-gray-100 text-gray-600 border border-gray-300">
+                              <div className="flex items-center justify-center">
+                                <Clock className="w-4 h-4 mr-2" />
+                                Request Already Sent
+                              </div>
+                              <p className="text-xs mt-1">
+                                Awaiting traveler's response
+                              </p>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (!userProfile?.verified) {
+                                  setShowNotification({
+                                    isVisible: true,
+                                    message:
+                                      "You need to verify your identity before sending requests. Please complete the verification process first.",
+                                    type: "warning",
+                                  });
+                                  return;
+                                }
+                                setSelectedTrip(trip);
+                                setShowRequestModal(true);
+                              }}
+                              className="w-full py-2.5 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                              disabled={!userProfile?.verified}
+                            >
+                              Send Request
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

@@ -25,7 +25,7 @@ export default function GlobalNavigation() {
     primaryRedHover: "#B01030",
     primaryBlue: "#003366",
     primaryBlueHover: "#002244",
-    gold: "#FFD700",
+    green: "green",
     white: "#FFFFFF",
     darkGray: "#2E2E2E",
     lightGray: "#F5F5F5",
@@ -248,7 +248,7 @@ export default function GlobalNavigation() {
               >
                 <svg
                   className="w-4 h-4 sm:w-5 sm:h-5"
-                  style={{ color: colors.gold }}
+                  style={{ color: colors.green }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -400,7 +400,7 @@ export default function GlobalNavigation() {
       return (
         <div
           className="ml-2 w-4 h-4 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: colors.gold }}
+          style={{ backgroundColor: colors.green }}
         >
           <svg
             className="w-2.5 h-2.5 text-white"
@@ -527,7 +527,7 @@ export default function GlobalNavigation() {
                         currentAccountType === "traveler" && (
                           <div
                             className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center"
-                            style={{ backgroundColor: colors.gold }}
+                            style={{ backgroundColor: colors.green }}
                           >
                             <svg
                               className="w-2 h-2 text-white"
@@ -741,7 +741,7 @@ export default function GlobalNavigation() {
                               currentAccountType !== "traveler" && (
                                 <span
                                   className="text-xs text-white px-3 py-1 rounded-full mr-2 font-bold shadow-sm"
-                                  style={{ backgroundColor: colors.gold }}
+                                  style={{ backgroundColor: colors.green }}
                                 >
                                   Verify
                                 </span>
@@ -890,7 +890,7 @@ export default function GlobalNavigation() {
                         currentAccountType === "traveler" && (
                           <div
                             className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white flex items-center justify-center"
-                            style={{ backgroundColor: colors.gold }}
+                            style={{ backgroundColor: colors.green }}
                           >
                             <svg
                               className="w-1.5 h-1.5 text-white"
@@ -1027,7 +1027,7 @@ export default function GlobalNavigation() {
                         currentAccountType !== "traveler" && (
                           <div
                             className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                            style={{ backgroundColor: colors.gold }}
+                            style={{ backgroundColor: colors.green }}
                           >
                             <span className="text-xs text-white font-bold">
                               !

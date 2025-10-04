@@ -23,7 +23,7 @@ export default function RootLayout({ children }) {
           <VisitorTracker />
           <AuthWrapper>
             <GlobalNavigation />
-            <main className="min-h-screen bg-gray-50">{children}</main>
+            {<main className="min-h-screen bg-gray-50">{children}</main>}
             <Footer />
             <GlobalLiveChat />
           </AuthWrapper>
