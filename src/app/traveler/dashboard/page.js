@@ -689,43 +689,68 @@ function TravelerDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-red-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-blue-100 rounded-lg p-3">
-                <Plane className="w-6 h-6 text-blue-800" />
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8">
+          <div className="bg-white rounded-lg shadow p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-center">
+              <div className="flex-shrink-0 bg-blue-100 rounded-lg p-2 sm:p-3 mb-2 sm:mb-0">
+                <Plane className="w-4 h-4 sm:w-6 sm:h-6 text-blue-800" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Active Trips</p>
+              <div className="sm:ml-4 text-center sm:text-left">
+                <p className="text-xs sm:text-sm text-gray-600">Active Trips</p>
+                <p className="text-lg sm:text-2xl font-semibold text-gray-900"></p>
                 <p className="text-2xl font-semibold text-gray-900">
                   {activeTrips.length}
                 </p>
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-yellow-100 rounded-lg p-3">
-                <Package className="w-6 h-6 text-yellow-600" />
+          <div className="bg-white rounded-lg shadow p-3 sm:p-6 relative overflow-hidden">
+            {pendingRequestsCount > 0 && (
+              <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-yellow-100 via-yellow-200 to-yellow-100 opacity-50"></div>
+            )}
+            <div className="relative flex flex-col sm:flex-row items-center">
+              <div
+                className={`flex-shrink-0 rounded-lg p-2 sm:p-3 mb-2 sm:mb-0 ${
+                  pendingRequestsCount > 0
+                    ? "bg-yellow-200 animate-bounce"
+                    : "bg-yellow-100"
+                }`}
+              >
+                <Package
+                  className={`w-4 h-4 sm:w-6 sm:h-6 ${
+                    pendingRequestsCount > 0
+                      ? "text-yellow-700"
+                      : "text-yellow-600"
+                  }`}
+                />
               </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Pending Requests</p>
-                <p className="text-2xl font-semibold text-gray-900">
+              <div className="sm:ml-4 text-center sm:text-left">
+                <p className="text-xs sm:text-sm text-gray-600">Pending</p>
+                <p
+                  className={`text-lg sm:text-2xl font-semibold ${
+                    pendingRequestsCount > 0
+                      ? "text-yellow-700"
+                      : "text-gray-900"
+                  }`}
+                >
                   {pendingRequestsCount}
                 </p>
               </div>
             </div>
+            {pendingRequestsCount > 0 && (
+              <div className="absolute top-0 right-0 w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full animate-ping"></div>
+            )}
           </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-green-100 rounded-lg p-3">
-                <CheckCircle className="w-6 h-6 text-green-600" />
+          <div className="bg-white rounded-lg shadow p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-center">
+              <div className="flex-shrink-0 bg-green-100 rounded-lg p-2 sm:p-3 mb-2 sm:mb-0">
+                <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-green-600" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Accepted Requests</p>
-                <p className="text-2xl font-semibold text-gray-900">
+              <div className="sm:ml-4 text-center sm:text-left">
+                <p className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                  Accepted
+                </p>
+                <p className="text-lg sm:text-2xl font-semibold text-gray-900">
                   {
                     incomingRequests.filter((r) => r.status === "accepted")
                       .length
@@ -749,13 +774,18 @@ function TravelerDashboard() {
           </button>
           <button
             onClick={() => setActiveTab("requests")}
-            className={`px-4 py-2 font-medium text-sm transition-colors duration-200 ${
+            className={`px-4 py-2 font-medium text-sm transition-colors duration-200 relative ${
               activeTab === "requests"
                 ? "border-b-2 border-red-600 text-red-600"
                 : "text-gray-500 hover:text-gray-700"
             }`}
           >
             Incoming Requests
+            {pendingRequestsCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                {pendingRequestsCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -1089,6 +1119,11 @@ function TravelerDashboard() {
                           departureDate: e.target.value,
                         })
                       }
+                      min={
+                        new Date(new Date().setDate(new Date().getDate() + 1))
+                          .toISOString()
+                          .split("T")[0]
+                      }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                       required
                     />
@@ -1105,6 +1140,12 @@ function TravelerDashboard() {
                           ...tripData,
                           arrivalDate: e.target.value,
                         })
+                      }
+                      min={
+                        tripData.departureDate ||
+                        new Date(new Date().setDate(new Date().getDate() + 1))
+                          .toISOString()
+                          .split("T")[0]
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800"
                       required

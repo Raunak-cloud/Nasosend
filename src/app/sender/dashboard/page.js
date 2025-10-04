@@ -138,11 +138,8 @@ export default function SenderDashboardPage() {
       const tripsData = [];
       querySnapshot.forEach((doc) => {
         const tripData = { id: doc.id, ...doc.data() };
-        if (tripData.travelerId !== user.uid) {
-          tripsData.push(tripData);
-        }
+        tripsData.push(tripData); // Show all trips including own trips
       });
-
       setAvailableTrips(tripsData);
     } catch (error) {
       console.error("Error fetching trips:", error);
@@ -1127,7 +1124,17 @@ export default function SenderDashboardPage() {
                         </div>
                         {/* Replace the existing Send Request button with this */}
                         <div className="mt-4">
-                          {tripRequestStatus[trip.id] ? (
+                          {trip.travelerId === user.uid ? (
+                            <div className="w-full py-2.5 rounded-lg text-sm font-medium text-center bg-gray-100 text-gray-600 border border-gray-300">
+                              <div className="flex items-center justify-center">
+                                <AlertCircle className="w-4 h-4 mr-2" />
+                                This is Your Trip
+                              </div>
+                              <p className="text-xs mt-1">
+                                You cannot send a request to yourself
+                              </p>
+                            </div>
+                          ) : tripRequestStatus[trip.id] ? (
                             <div className="w-full py-2.5 rounded-lg text-sm font-medium text-center bg-gray-100 text-gray-600 border border-gray-300">
                               <div className="flex items-center justify-center">
                                 <Clock className="w-4 h-4 mr-2" />
